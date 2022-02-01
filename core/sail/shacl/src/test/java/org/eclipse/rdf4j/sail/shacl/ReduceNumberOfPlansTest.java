@@ -34,7 +34,7 @@ public class ReduceNumberOfPlansTest {
 	public void testAddingTypeStatement() throws RDFParseException, UnsupportedRDFormatException, IOException {
 		ShaclSail shaclSail = new ShaclSail(new MemoryStore());
 		shaclSail.init();
-		Utils.loadShapeData(shaclSail, "reduceNumberOfPlansTest/shacl.ttl");
+		Utils.loadShapeData(shaclSail, "reduceNumberOfPlansTest/shacl.trig");
 
 		addDummyData(shaclSail);
 
@@ -82,7 +82,7 @@ public class ReduceNumberOfPlansTest {
 	public void testRemovingPredicate() throws RDF4JException, UnsupportedRDFormatException, IOException {
 		ShaclSail shaclSail = new ShaclSail(new MemoryStore());
 		shaclSail.init();
-		Utils.loadShapeData(shaclSail, "reduceNumberOfPlansTest/shacl.ttl");
+		Utils.loadShapeData(shaclSail, "reduceNumberOfPlansTest/shacl.trig");
 
 		addDummyData(shaclSail);
 

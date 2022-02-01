@@ -37,6 +37,10 @@ import java.util.stream.Stream;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.jena.query.Dataset;
+import org.apache.jena.query.DatasetFactory;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.update.UpdateAction;
 import org.eclipse.rdf4j.common.transaction.IsolationLevel;
 import org.eclipse.rdf4j.common.transaction.IsolationLevels;
@@ -275,7 +279,7 @@ abstract public class AbstractShaclTest {
 		public Model getShacl() {
 			if (shacl == null) {
 				try {
-					shacl = Rio.parse(new StringReader(shaclData), RDFFormat.TURTLE).unmodifiable();
+					shacl = Rio.parse(new StringReader(shaclData), RDFFormat.TRIG).unmodifiable();
 				} catch (IOException e) {
 					throw new IllegalStateException(e);
 				}
@@ -317,9 +321,25 @@ abstract public class AbstractShaclTest {
 		String shacl;
 
 		try (InputStream resourceAsStream = AbstractShaclTest.class.getClassLoader()
-				.getResourceAsStream(testCase + "/shacl.ttl")) {
-			assert Objects.nonNull(resourceAsStream) : "Could not find: " + testCase + "/shacl.ttl";
+				.getResourceAsStream(testCase + "/shacl.trig")) {
+			assert Objects.nonNull(resourceAsStream) : "Could not find: " + testCase + "/shacl.trig";
 			shacl = IOUtils.toString(resourceAsStream, StandardCharsets.UTF_8);
+
+//			File file = new File("/Users/havardottestad/Documents/Programming/rdf4j/core/sail/shacl/src/test/resources/" + testCase + "/shacl.ttl");
+//			file.delete();
+
+//			try (FileWriter fileWriter = new FileWriter("/Users/havardottestad/Documents/Programming/rdf4j/core/sail/shacl/src/test/resources/"+testCase + "/shacl.trig", StandardCharsets.UTF_8)) {
+//				Model parse = Rio.parse(new StringReader(shacl), RDFFormat.TRIG);
+//				parse.setNamespace(RDF4J.NS);
+//				List<Statement> statements = new ArrayList<>(parse);
+//				parse.clear();
+//				for (Statement statement : statements) {
+//					parse.remove(statement);
+//					parse.add(statement.getSubject(), statement.getPredicate(), statement.getObject(), RDF4J.SHACL_SHAPE_GRAPH);
+//				}
+//				WriterConfig set = new WriterConfig().set(BasicWriterSettings.INLINE_BLANK_NODES, true).set(BasicWriterSettings.PRETTY_PRINT, true).set(BasicWriterSettings.XSD_STRING_TO_PLAIN_LITERAL, true);
+//				Rio.write(parse, fileWriter, RDFFormat.TRIG, set);
+//			}
 
 		} catch (IOException e) {
 			throw new IllegalStateException(e);
@@ -573,9 +593,11 @@ abstract public class AbstractShaclTest {
 
 		printTestCase(testCase);
 
-		org.apache.jena.rdf.model.Model shacl = JenaUtil
-				.createMemoryModel()
-				.read(new StringReader(testCase.getShaclData()), "", org.apache.jena.util.FileUtils.langTurtle);
+		Dataset shaclDataset = DatasetFactory.create();
+
+		RDFDataMgr.read(shaclDataset, new StringReader(testCase.getShaclData()), "",  RDFLanguages.TRIG);
+
+		org.apache.jena.rdf.model.Model shacl = shaclDataset.getNamedModel(RDF4J.SHACL_SHAPE_GRAPH.toString());
 
 		checkShapesConformToW3cShaclRecommendation(shacl);
 
@@ -616,7 +638,7 @@ abstract public class AbstractShaclTest {
 
 			try {
 				Model validationReportExpected = Rio.parse(new StringReader(ModelPrinter.get().print(model)), "",
-						RDFFormat.TURTLE);
+						RDFFormat.TRIG);
 
 				try {
 					InputStream resourceAsStream = AbstractShaclTest.class.getClassLoader()
@@ -657,7 +679,7 @@ abstract public class AbstractShaclTest {
 		if (resourceAsStream == null) {
 			validationReportActual = new LinkedHashModel();
 		} else {
-			validationReportActual = Rio.parse(resourceAsStream, "", RDFFormat.TURTLE);
+			validationReportActual = Rio.parse(resourceAsStream, "", RDFFormat.TRIG);
 		}
 		return validationReportActual;
 	}
@@ -743,7 +765,7 @@ abstract public class AbstractShaclTest {
 
 		StringWriter stringWriter = new StringWriter();
 
-		Rio.write(model, stringWriter, RDFFormat.TURTLE, writerConfig);
+		Rio.write(model, stringWriter, RDFFormat.TRIG, writerConfig);
 
 		return stringWriter.toString();
 	}
@@ -966,9 +988,9 @@ abstract public class AbstractShaclTest {
 
 			List<Shape> shapes = ((ShaclSail) shaclRepository.getSail()).getCurrentShapes();
 
-			DynamicModel actual = new DynamicModelFactory().createEmptyModel();
+			Model shapesModel = new DynamicModelFactory().createEmptyModel();
 			HashSet<Resource> dedupe = new HashSet<>();
-			shapes.forEach(shape -> shape.toModel(actual));
+			shapes.forEach(shape -> shape.toModel(shapesModel));
 
 			Model parse = new LinkedHashModel(testCase.getShacl());
 
@@ -988,12 +1010,15 @@ abstract public class AbstractShaclTest {
 			parse.remove(null, RDF.TYPE, SHACL.NODE_SHAPE);
 			parse.remove(null, RDF.TYPE, SHACL.SHAPE);
 			parse.remove(null, RDF.TYPE, SHACL.PROPERTY_SHAPE);
-			actual.remove(null, RDF.TYPE, SHACL.NODE_SHAPE);
-			actual.remove(null, RDF.TYPE, SHACL.SHAPE);
-			actual.remove(null, RDF.TYPE, SHACL.PROPERTY_SHAPE);
+			shapesModel.remove(null, RDF.TYPE, SHACL.NODE_SHAPE);
+			shapesModel.remove(null, RDF.TYPE, SHACL.SHAPE);
+			shapesModel.remove(null, RDF.TYPE, SHACL.PROPERTY_SHAPE);
 
-			if (!Models.isomorphic(parse, actual)) {
-				assertEquals(modelToString(parse), modelToString(actual));
+			Model expected = Models.stripContexts(parse, RDF4J.SHACL_SHAPE_GRAPH);
+			Model actual = Models.stripContexts(shapesModel, RDF4J.SHACL_SHAPE_GRAPH);
+
+			if (!Models.isomorphic(expected, actual)) {
+				assertEquals(modelToString(expected), modelToString(actual));
 			}
 
 		} finally {
@@ -1018,7 +1043,7 @@ abstract public class AbstractShaclTest {
 		writerConfig.set(BasicWriterSettings.PRETTY_PRINT, true);
 		writerConfig.set(BasicWriterSettings.INLINE_BLANK_NODES, true);
 
-		Rio.write(validationReport, System.out, RDFFormat.TURTLE, writerConfig);
+		Rio.write(validationReport, System.out, RDFFormat.TRIG, writerConfig);
 		System.out.println("\n############################################");
 	}
 
@@ -1101,7 +1126,7 @@ abstract public class AbstractShaclTest {
 			shaclPath = shaclPath + "/";
 		}
 
-		return shaclPath + "shacl.ttl";
+		return shaclPath + "shacl.trig";
 	}
 
 	enum ExpectedResult {

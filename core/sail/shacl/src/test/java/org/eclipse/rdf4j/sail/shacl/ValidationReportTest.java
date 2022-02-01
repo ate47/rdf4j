@@ -36,7 +36,7 @@ public class ValidationReportTest {
 
 	@Test
 	public void simpleFirstTest() throws IOException {
-		SailRepository shaclSail = Utils.getInitializedShaclRepository("shacl.ttl");
+		SailRepository shaclSail = Utils.getInitializedShaclRepository("shacl.trig");
 
 		try (SailRepositoryConnection connection = shaclSail.getConnection()) {
 
@@ -57,7 +57,7 @@ public class ValidationReportTest {
 			actual.setNamespace(RDFS.PREFIX, RDFS.NAMESPACE);
 			actual.setNamespace("ex", "http://example.com/ns#");
 
-//			Rio.write(actual, System.out, RDFFormat.TURTLE);
+//			Rio.write(actual, System.out, RDFFormat.TRIG);
 
 			Model expected = Rio.parse(new StringReader("" +
 					"@prefix sh: <http://www.w3.org/ns/shacl#> .\n" +
@@ -86,7 +86,7 @@ public class ValidationReportTest {
 					"  sh:resultPath rdfs:label;\n" +
 					"  sh:sourceConstraintComponent sh:MinCountConstraintComponent;\n" +
 					"  sh:resultSeverity sh:Violation;\n" +
-					"  sh:sourceShape ex:PersonShapeProperty .\n" + ""), "", RDFFormat.TURTLE);
+					"  sh:sourceShape ex:PersonShapeProperty .\n" + ""), "", RDFFormat.TRIG);
 
 			assertTrue(Models.isomorphic(expected, actual));
 
@@ -97,7 +97,7 @@ public class ValidationReportTest {
 
 	@Test
 	public void withoutPathTest() throws IOException {
-		SailRepository shaclSail = Utils.getInitializedShaclRepository("shaclValidateTarget.ttl");
+		SailRepository shaclSail = Utils.getInitializedShaclRepository("shaclValidateTarget.trig");
 
 		try (SailRepositoryConnection connection = shaclSail.getConnection()) {
 
@@ -116,7 +116,7 @@ public class ValidationReportTest {
 			actual.setNamespace(RDFS.PREFIX, RDFS.NAMESPACE);
 			actual.setNamespace("ex", "http://example.com/ns#");
 
-//			Rio.write(actual, System.out, RDFFormat.TURTLE);
+//			Rio.write(actual, System.out, RDFFormat.TRIG);
 
 			Model expected = Rio.parse(new StringReader("" +
 					"@prefix sh: <http://www.w3.org/ns/shacl#> .\n" +
@@ -139,7 +139,7 @@ public class ValidationReportTest {
 					"ex:PersonShape a sh:NodeShape;\n" +
 					"  sh:targetClass ex:Person, ex:SecondTarget;\n" +
 					"  sh:class ex:Person ."
-					+ ""), "", RDFFormat.TURTLE);
+					+ ""), "", RDFFormat.TRIG);
 
 			assertTrue(Models.isomorphic(expected, actual));
 
@@ -151,7 +151,7 @@ public class ValidationReportTest {
 	@Test
 	public void nestedLogicalOrSupport() throws IOException {
 
-		SailRepository shaclSail = Utils.getInitializedShaclRepository("test-cases/or/datatype/shacl.ttl");
+		SailRepository shaclSail = Utils.getInitializedShaclRepository("test-cases/or/datatype/shacl.trig");
 
 		try (SailRepositoryConnection connection = shaclSail.getConnection()) {
 
@@ -174,7 +174,7 @@ public class ValidationReportTest {
 			writerConfig.set(BasicWriterSettings.INLINE_BLANK_NODES, true);
 			writerConfig.set(BasicWriterSettings.PRETTY_PRINT, true);
 
-//			Rio.write(actual, System.out, RDFFormat.TURTLE, writerConfig);
+//			Rio.write(actual, System.out, RDFFormat.TRIG, writerConfig);
 
 			Model expected = Rio.parse(new StringReader("" +
 					"@prefix sh: <http://www.w3.org/ns/shacl#> .\n" +
@@ -202,7 +202,7 @@ public class ValidationReportTest {
 					"  sh:datatype <http://www.w3.org/2001/XMLSchema#integer> .\n" +
 					"\n" +
 					"ex:personShapeAgeLong a sh:NodeShape;\n" +
-					"  sh:datatype <http://www.w3.org/2001/XMLSchema#long> .\n" + ""), "", RDFFormat.TURTLE);
+					"  sh:datatype <http://www.w3.org/2001/XMLSchema#long> .\n" + ""), "", RDFFormat.TRIG);
 
 			assertTrue(Models.isomorphic(expected, actual));
 
@@ -214,7 +214,7 @@ public class ValidationReportTest {
 	@Test
 	public void testHasValueIn() throws IOException {
 
-		SailRepository shaclSail = Utils.getInitializedShaclRepository("test-cases/hasValueIn/simple/shacl.ttl");
+		SailRepository shaclSail = Utils.getInitializedShaclRepository("test-cases/hasValueIn/simple/shacl.trig");
 
 		ShaclSail sail = (ShaclSail) shaclSail.getSail();
 		sail.setDashDataShapes(true);
@@ -241,7 +241,7 @@ public class ValidationReportTest {
 			writerConfig.set(BasicWriterSettings.INLINE_BLANK_NODES, true);
 			writerConfig.set(BasicWriterSettings.PRETTY_PRINT, true);
 
-//			Rio.write(actual, System.out, RDFFormat.TURTLE, writerConfig);
+//			Rio.write(actual, System.out, RDFFormat.TRIG, writerConfig);
 
 			Model expected = Rio.parse(new StringReader("" +
 					"@prefix sh: <http://www.w3.org/ns/shacl#> .\n" +
@@ -261,7 +261,7 @@ public class ValidationReportTest {
 					"          sh:path ex:knows;\n" +
 					"          <http://datashapes.org/dash#hasValueIn> (ex:peter ex:mary ex:kate)\n" +
 					"        ]\n" +
-					"    ] .\n" + ""), "", RDFFormat.TURTLE);
+					"    ] .\n" + ""), "", RDFFormat.TRIG);
 
 			assertTrue(Models.isomorphic(expected, actual));
 
@@ -273,7 +273,7 @@ public class ValidationReportTest {
 	@Test
 	public void testHasValue() throws IOException {
 
-		SailRepository shaclSail = Utils.getInitializedShaclRepository("test-cases/hasValue/simple/shacl.ttl");
+		SailRepository shaclSail = Utils.getInitializedShaclRepository("test-cases/hasValue/simple/shacl.trig");
 
 		ShaclSail sail = (ShaclSail) shaclSail.getSail();
 		sail.setDashDataShapes(true);
@@ -300,7 +300,7 @@ public class ValidationReportTest {
 			writerConfig.set(BasicWriterSettings.INLINE_BLANK_NODES, true);
 			writerConfig.set(BasicWriterSettings.PRETTY_PRINT, true);
 
-//			Rio.write(actual, System.out, RDFFormat.TURTLE, writerConfig);
+//			Rio.write(actual, System.out, RDFFormat.TRIG, writerConfig);
 
 			Model expected = Rio.parse(new StringReader(""
 					+ "@prefix sh: <http://www.w3.org/ns/shacl#> .\n" +
@@ -320,7 +320,7 @@ public class ValidationReportTest {
 					"          sh:path ex:knows;\n" +
 					"          sh:hasValue ex:peter\n" +
 					"        ]\n" +
-					"    ] .\n" + ""), "", RDFFormat.TURTLE);
+					"    ] .\n" + ""), "", RDFFormat.TRIG);
 
 			assertTrue(Models.isomorphic(expected, actual));
 

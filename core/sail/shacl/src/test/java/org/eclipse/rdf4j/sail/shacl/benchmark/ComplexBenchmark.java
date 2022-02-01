@@ -84,7 +84,7 @@ public class ComplexBenchmark {
 	@Benchmark
 	public void shaclParallelCache() throws Exception {
 
-		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.ttl"));
+		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.trig"));
 		((ShaclSail) repository.getSail()).setParallelValidation(true);
 		((ShaclSail) repository.getSail()).setCacheSelectNodes(true);
 
@@ -107,7 +107,7 @@ public class ComplexBenchmark {
 	@Benchmark
 	public void shaclNoTransactions() throws Exception {
 
-		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.ttl"));
+		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.trig"));
 
 		repository.shutDown();
 
@@ -122,8 +122,8 @@ public class ComplexBenchmark {
 			connection.begin(IsolationLevels.NONE);
 			try {
 				connection.add(
-						ComplexBenchmark.class.getClassLoader().getResourceAsStream("complexBenchmark/shacl.ttl"), "",
-						RDFFormat.TURTLE);
+						ComplexBenchmark.class.getClassLoader().getResourceAsStream("complexBenchmark/shacl.trig"), "",
+						RDFFormat.TRIG);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -149,7 +149,7 @@ public class ComplexBenchmark {
 	@Benchmark
 	public void shaclEmptyTransactions() throws Exception {
 
-		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.ttl"));
+		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.trig"));
 		((ShaclSail) repository.getSail()).setParallelValidation(false);
 
 		try (SailRepositoryConnection connection = repository.getConnection()) {
@@ -166,7 +166,7 @@ public class ComplexBenchmark {
 	@Benchmark
 	public void shaclNothingToValidateTransactions() throws Exception {
 
-		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.ttl"));
+		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.trig"));
 		((ShaclSail) repository.getSail()).setParallelValidation(false);
 
 		try (SailRepositoryConnection connection = repository.getConnection()) {
@@ -185,7 +185,7 @@ public class ComplexBenchmark {
 	@Benchmark
 	public void shaclParallelCacheSingleTransactionNoIsolation() throws Exception {
 
-		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.ttl"));
+		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.trig"));
 		((ShaclSail) repository.getSail()).setParallelValidation(true);
 		((ShaclSail) repository.getSail()).setCacheSelectNodes(true);
 
@@ -206,7 +206,7 @@ public class ComplexBenchmark {
 	@Benchmark
 	public void shaclParallel() throws Exception {
 
-		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.ttl"));
+		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.trig"));
 
 		((ShaclSail) repository.getSail()).setParallelValidation(true);
 		((ShaclSail) repository.getSail()).setCacheSelectNodes(false);
@@ -230,7 +230,7 @@ public class ComplexBenchmark {
 	@Benchmark
 	public void shaclCache() throws Exception {
 
-		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.ttl"));
+		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.trig"));
 
 		((ShaclSail) repository.getSail()).setParallelValidation(false);
 
@@ -253,7 +253,7 @@ public class ComplexBenchmark {
 	@Benchmark
 	public void shacl() throws Exception {
 
-		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.ttl"));
+		SailRepository repository = new SailRepository(Utils.getInitializedShaclSail("complexBenchmark/shacl.trig"));
 
 		((ShaclSail) repository.getSail()).setParallelValidation(false);
 		((ShaclSail) repository.getSail()).setCacheSelectNodes(false);

@@ -134,7 +134,7 @@ public class PathTest {
 		Model expected = Rio.parse(new StringReader("" +
 				"@prefix sh: <http://www.w3.org/ns/shacl#>.\n" +
 				"@prefix ex: <http://example.org/>.\n" +
-				pathString), "", RDFFormat.TURTLE);
+				pathString), "", RDFFormat.TRIG);
 
 		DynamicModel actual = convertToPathAndBackToModel(expected);
 
@@ -151,10 +151,10 @@ public class PathTest {
 			actual.setNamespace("ex", "http://example.org/");
 
 			System.out.println("Expected:");
-			Rio.write(expected, System.out, RDFFormat.TURTLE, writerConfig);
+			Rio.write(expected, System.out, RDFFormat.TRIG, writerConfig);
 
 			System.out.println("Actual:");
-			Rio.write(actual, System.out, RDFFormat.TURTLE, writerConfig);
+			Rio.write(actual, System.out, RDFFormat.TRIG, writerConfig);
 
 		}
 

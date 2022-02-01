@@ -35,7 +35,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testCleanup() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.trig");
 		addDummyData(shaclRepository);
 
 		try (SailRepositoryConnection connection = shaclRepository.getConnection()) {
@@ -55,7 +55,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testTransactions() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.trig");
 		addDummyData(shaclRepository);
 
 		try (SailRepositoryConnection connection = shaclRepository.getConnection()) {
@@ -79,7 +79,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testRollback() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.trig");
 		addDummyData(shaclRepository);
 
 		try (SailRepositoryConnection connection = shaclRepository.getConnection()) {
@@ -111,7 +111,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testTrandactionRollbackCleanup() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("shacl.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("shacl.trig");
 
 		try (SailRepositoryConnection connection = shaclRepository.getConnection()) {
 
@@ -141,7 +141,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testValidationFailedCausesRollback() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("shacl.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("shacl.trig");
 
 		try (SailRepositoryConnection connection = shaclRepository.getConnection()) {
 
@@ -169,7 +169,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testCleanupOnClose() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("shacl.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("shacl.trig");
 
 		SailRepositoryConnection connection = shaclRepository.getConnection();
 		connection.begin();
@@ -192,7 +192,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testAddRemoveAddRemove() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.trig");
 		addDummyData(shaclRepository);
 
 		try (SailRepositoryConnection connection = shaclRepository.getConnection()) {
@@ -223,7 +223,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testAdd() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.trig");
 		addDummyData(shaclRepository);
 
 		addDummyData(shaclRepository);
@@ -267,7 +267,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testAddRemove() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.trig");
 		addDummyData(shaclRepository);
 
 		try (SailRepositoryConnection connection = shaclRepository.getConnection()) {
@@ -300,7 +300,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testRemove() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.trig");
 		addDummyData(shaclRepository);
 
 		try (SailRepositoryConnection connection = shaclRepository.getConnection()) {
@@ -331,7 +331,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testRemoveWithoutAdding() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.trig");
 		addDummyData(shaclRepository);
 
 		try (SailRepositoryConnection connection = shaclRepository.getConnection()) {
@@ -358,7 +358,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testSingleRemove() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.trig");
 		addDummyData(shaclRepository);
 
 		try (SailRepositoryConnection connection = shaclRepository.getConnection()) {
@@ -386,7 +386,7 @@ public class TrackAddedStatementsTest {
 	@Test
 	public void testSingleAdd() throws Exception {
 
-		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.ttl");
+		SailRepository shaclRepository = Utils.getInitializedShaclRepository("empty.trig");
 		addDummyData(shaclRepository);
 
 		try (SailRepositoryConnection connection = shaclRepository.getConnection()) {

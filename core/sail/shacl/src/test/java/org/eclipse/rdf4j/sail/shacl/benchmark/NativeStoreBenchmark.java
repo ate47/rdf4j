@@ -132,26 +132,26 @@ public class NativeStoreBenchmark {
 
 			if (singleTransaction) {
 				connection.begin(transactionSettings);
-				try (InputStream inputStream = getFile("complexBenchmark/shacl.ttl")) {
-					connection.add(inputStream, "", RDFFormat.TURTLE, RDF4J.SHACL_SHAPE_GRAPH);
+				try (InputStream inputStream = getFile("complexBenchmark/shacl.trig")) {
+					connection.add(inputStream, "", RDFFormat.TRIG, RDF4J.SHACL_SHAPE_GRAPH);
 				}
 
 				try (InputStream inputStream = getFile("complexBenchmark/generated.ttl")) {
-					connection.add(inputStream, "", RDFFormat.TURTLE);
+					connection.add(inputStream, "", RDFFormat.TRIG);
 				}
 				connection.commit();
 
 			} else {
 				connection.begin(transactionSettings);
-				try (InputStream inputStream = getFile("complexBenchmark/shacl.ttl")) {
-					connection.add(inputStream, "", RDFFormat.TURTLE, RDF4J.SHACL_SHAPE_GRAPH);
+				try (InputStream inputStream = getFile("complexBenchmark/shacl.trig")) {
+					connection.add(inputStream, "", RDFFormat.TRIG, RDF4J.SHACL_SHAPE_GRAPH);
 				}
 
 				connection.commit();
 				connection.begin(transactionSettings);
 
 				try (InputStream inputStream = getFile("complexBenchmark/generated.ttl")) {
-					connection.add(inputStream, "", RDFFormat.TURTLE);
+					connection.add(inputStream, "", RDFFormat.TRIG);
 				}
 				connection.commit();
 			}
@@ -177,8 +177,8 @@ public class NativeStoreBenchmark {
 
 			connection.begin(IsolationLevels.NONE);
 
-			try (InputStream inputStream = getFile("complexBenchmark/shacl.ttl")) {
-				connection.add(inputStream, "", RDFFormat.TURTLE, RDF4J.SHACL_SHAPE_GRAPH);
+			try (InputStream inputStream = getFile("complexBenchmark/shacl.trig")) {
+				connection.add(inputStream, "", RDFFormat.TRIG, RDF4J.SHACL_SHAPE_GRAPH);
 			}
 
 			try (InputStream inputStream = getFile("complexBenchmark/generated.ttl")) {
@@ -206,12 +206,12 @@ public class NativeStoreBenchmark {
 
 			connection.begin(IsolationLevels.NONE);
 
-			try (InputStream inputStream = getFile("complexBenchmark/shacl.ttl")) {
-				connection.add(inputStream, "", RDFFormat.TURTLE, RDF4J.SHACL_SHAPE_GRAPH);
+			try (InputStream inputStream = getFile("complexBenchmark/shacl.trig")) {
+				connection.add(inputStream, "", RDFFormat.TRIG, RDF4J.SHACL_SHAPE_GRAPH);
 			}
 
 			try (InputStream inputStream = getFile("complexBenchmark/generated.ttl")) {
-				connection.add(inputStream, "", RDFFormat.TURTLE);
+				connection.add(inputStream, "", RDFFormat.TRIG);
 			}
 			connection.commit();
 

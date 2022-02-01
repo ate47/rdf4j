@@ -33,6 +33,7 @@ import org.eclipse.rdf4j.model.impl.DynamicModel;
 import org.eclipse.rdf4j.model.impl.DynamicModelFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
+import org.eclipse.rdf4j.model.vocabulary.RDF4J;
 import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.repository.RepositoryException;
 import org.eclipse.rdf4j.repository.sail.SailRepository;
@@ -80,7 +81,7 @@ public class W3cComplianceTest {
 		ShaclSail shaclSail = new ShaclSail(new MemoryStore());
 		SailRepository sailRepository = new SailRepository(shaclSail);
 
-		Utils.loadShapeData(sailRepository, resourceName);
+		Utils.loadShapeData(sailRepository, resourceName, RDFFormat.TURTLE, RDF4J.SHACL_SHAPE_GRAPH);
 
 		Model statements = extractShapesModel(shaclSail);
 
@@ -138,7 +139,7 @@ public class W3cComplianceTest {
 		public Manifest(URL filename) {
 			SailRepository sailRepository = new SailRepository(new MemoryStore());
 			try (SailRepositoryConnection connection = sailRepository.getConnection()) {
-				connection.add(filename, filename.toString(), RDFFormat.TURTLE);
+				connection.add(filename, filename.toString(), RDFFormat.TRIG);
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
@@ -185,7 +186,7 @@ public class W3cComplianceTest {
 		boolean actualConforms = true;
 		try (SailRepositoryConnection connection = sailRepository.getConnection()) {
 			connection.begin();
-			connection.add(resourceName, "http://example.org/", RDFFormat.TURTLE);
+			connection.add(resourceName, "http://example.org/", RDFFormat.TRIG);
 			connection.commit();
 
 			connection.begin();
@@ -201,7 +202,7 @@ public class W3cComplianceTest {
 						SimpleValueFactory.getInstance().createLiteral(true));
 
 				System.out.println("\n######### Report ######### \n");
-				Rio.write(statements1, System.out, RDFFormat.TURTLE);
+				Rio.write(statements1, System.out, RDFFormat.TRIG);
 				System.out.println("\n##################### \n");
 			} else {
 				actualConforms = true;
@@ -218,7 +219,7 @@ public class W3cComplianceTest {
 
 		W3C_shaclTestValidate(URL filename) {
 			this.filename = filename.getPath();
-			SailRepository sailRepository = Utils.getSailRepository(filename);
+			SailRepository sailRepository = Utils.getSailRepository(filename, RDFFormat.TURTLE);
 			try (SailRepositoryConnection connection = sailRepository.getConnection()) {
 				try (Stream<Statement> stream = connection.getStatements(null, SHACL.CONFORMS, null).stream()) {
 					conforms = stream

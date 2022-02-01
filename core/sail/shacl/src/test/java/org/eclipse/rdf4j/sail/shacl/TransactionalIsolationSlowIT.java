@@ -117,7 +117,7 @@ public class TransactionalIsolationSlowIT {
 										" ."));
 
 						try {
-							connection.add(shaclRules, "", RDFFormat.TURTLE, RDF4J.SHACL_SHAPE_GRAPH);
+							connection.add(shaclRules, "", RDFFormat.TRIG, RDF4J.SHACL_SHAPE_GRAPH);
 						} catch (IOException e) {
 							throw new IllegalStateException();
 						}
@@ -154,7 +154,7 @@ public class TransactionalIsolationSlowIT {
 						WriterConfig writerConfig = new WriterConfig();
 						writerConfig.set(BasicWriterSettings.PRETTY_PRINT, true);
 						writerConfig.set(BasicWriterSettings.INLINE_BLANK_NODES, true);
-						Rio.write(statements, System.out, RDFFormat.TURTLE, writerConfig);
+						Rio.write(statements, System.out, RDFFormat.TRIG, writerConfig);
 					}
 
 					assertTrue(validationReport.conforms());
@@ -254,7 +254,7 @@ public class TransactionalIsolationSlowIT {
 										" ."));
 
 						try {
-							connection.add(shaclRules, "", RDFFormat.TURTLE, RDF4J.SHACL_SHAPE_GRAPH);
+							connection.add(shaclRules, "", RDFFormat.TRIG, RDF4J.SHACL_SHAPE_GRAPH);
 						} catch (IOException e) {
 							throw new IllegalStateException();
 						}
@@ -291,7 +291,7 @@ public class TransactionalIsolationSlowIT {
 						WriterConfig writerConfig = new WriterConfig();
 						writerConfig.set(BasicWriterSettings.PRETTY_PRINT, true);
 						writerConfig.set(BasicWriterSettings.INLINE_BLANK_NODES, true);
-						Rio.write(statements, System.out, RDFFormat.TURTLE, writerConfig);
+						Rio.write(statements, System.out, RDFFormat.TRIG, writerConfig);
 					}
 
 					assertTrue(validationReport.conforms());
@@ -316,7 +316,7 @@ public class TransactionalIsolationSlowIT {
 
 		StringReader stringReader = new StringReader(data);
 
-		connection.add(stringReader, "", RDFFormat.TURTLE);
+		connection.add(stringReader, "", RDFFormat.TRIG);
 		connection.commit();
 	}
 
@@ -330,7 +330,7 @@ public class TransactionalIsolationSlowIT {
 		StringReader stringReader = new StringReader(data);
 
 		try {
-			connection.add(stringReader, "", RDFFormat.TURTLE);
+			connection.add(stringReader, "", RDFFormat.TRIG);
 		} catch (IOException e) {
 			throw new IllegalStateException();
 		}

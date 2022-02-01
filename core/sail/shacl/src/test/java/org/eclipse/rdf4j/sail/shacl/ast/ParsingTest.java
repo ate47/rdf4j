@@ -24,7 +24,7 @@ public class ParsingTest {
 
 	@Test
 	public void initialTest() throws IOException {
-		ShaclSail shaclSail = Utils.getInitializedShaclSail("test-cases/datatype/not/shacl.ttl");
+		ShaclSail shaclSail = Utils.getInitializedShaclSail("test-cases/datatype/not/shacl.trig");
 
 		List<Shape> shapes = shaclSail.getCurrentShapes();
 
@@ -37,7 +37,7 @@ public class ParsingTest {
 
 	@Test
 	public void testSplitting() throws IOException {
-		ShaclSail shaclSail = Utils.getInitializedShaclSail("shaclExactly.ttl");
+		ShaclSail shaclSail = Utils.getInitializedShaclSail("shaclExactly.trig");
 
 		List<Shape> shapes = shaclSail.getCurrentShapes();
 

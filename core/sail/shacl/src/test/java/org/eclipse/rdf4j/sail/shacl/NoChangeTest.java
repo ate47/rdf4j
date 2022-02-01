@@ -33,8 +33,8 @@ public class NoChangeTest {
 		shaclSail.init();
 
 		Model shapes;
-		try (InputStream stream = NoShapesTest.class.getClassLoader().getResourceAsStream("shacl.ttl")) {
-			shapes = Rio.parse(stream, RDFFormat.TURTLE);
+		try (InputStream stream = NoShapesTest.class.getClassLoader().getResourceAsStream("shacl.trig")) {
+			shapes = Rio.parse(stream, RDFFormat.TRIG);
 		}
 
 		try (SailConnection connection = shaclSail.getConnection()) {
