@@ -27,6 +27,7 @@ import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.WriterConfig;
 import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
+import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
 import org.junit.jupiter.api.Test;
 
 public class PathTest {
@@ -168,7 +169,7 @@ public class PathTest {
 			connection.add(expected);
 
 			actual = connection.getStatements(null, SHACL.PATH, null).stream().map(s -> {
-				Path path = Path.buildPath(connection, (Resource) s.getObject());
+				Path path = Path.buildPath(new ShapeSource(connection, null), (Resource) s.getObject());
 				DynamicModel model = new DynamicModelFactory().createEmptyModel();
 				path.toModel((Resource) s.getObject(), null, model, new HashSet<>());
 

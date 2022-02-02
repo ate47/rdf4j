@@ -19,6 +19,7 @@ import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.RdfsSubClassOfReasoner;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclUnsupportedException;
+import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
 import org.eclipse.rdf4j.sail.shacl.ast.StatementMatcher;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNode;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNodeWrapper;
@@ -27,9 +28,9 @@ public class OneOrMorePath extends Path {
 
 	private final Path oneOrMorePath;
 
-	public OneOrMorePath(Resource id, Resource oneOrMorePath, RepositoryConnection connection) {
+	public OneOrMorePath(Resource id, Resource oneOrMorePath, ShapeSource shapeSource) {
 		super(id);
-		this.oneOrMorePath = Path.buildPath(connection, oneOrMorePath);
+		this.oneOrMorePath = Path.buildPath(shapeSource, oneOrMorePath);
 
 	}
 

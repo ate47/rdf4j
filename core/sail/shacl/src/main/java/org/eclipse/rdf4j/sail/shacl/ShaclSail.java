@@ -16,13 +16,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ref.Cleaner;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.eclipse.rdf4j.common.annotation.Experimental;
@@ -56,6 +61,7 @@ import org.eclipse.rdf4j.sail.inferencer.fc.SchemaCachingRDFSInferencer;
 import org.eclipse.rdf4j.sail.inferencer.fc.SchemaCachingRDFSInferencerConnection;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
 import org.eclipse.rdf4j.sail.shacl.ast.Shape;
+import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -192,15 +198,14 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 
 	private final AtomicBoolean initialized = new AtomicBoolean(false);
 
-	private final ExecutorService[] executorService = new ExecutorService[1];
+	private final RevivableExecutorService executorService;
 
 	static class CleanableState implements Runnable {
 
 		private final AtomicBoolean initialized;
-		private final ExecutorService[] executorService;
+		private final ExecutorService executorService;
 
-		CleanableState(AtomicBoolean initialized, ExecutorService[] executorService) {
-
+		CleanableState(AtomicBoolean initialized, ExecutorService executorService) {
 			this.initialized = initialized;
 			this.executorService = executorService;
 		}
@@ -209,20 +214,35 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 			if (initialized.get()) {
 				logger.error("ShaclSail was garbage collected without shutdown() having been called first.");
 			}
-			if (executorService[0] != null) {
-				executorService[0].shutdownNow();
-			}
+			executorService.shutdownNow();
 		}
 	}
 
 	public ShaclSail(NotifyingSail baseSail) {
 		super(baseSail);
+		executorService = getExecutorService();
 		cleaner.register(this, new CleanableState(initialized, executorService));
 	}
 
 	public ShaclSail() {
 		super();
+		executorService = getExecutorService();
 		cleaner.register(this, new CleanableState(initialized, executorService));
+	}
+
+	private static RevivableExecutorService getExecutorService() {
+		return new RevivableExecutorService(() -> {
+			return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2,
+					r -> {
+						Thread t = Executors.defaultThreadFactory().newThread(r);
+						// this thread pool does not need to stick around if the all other threads are done, because it
+						// is only used for SHACL validation and if all other threads have ended then there would be no
+						// thread to receive the validation results.
+						t.setDaemon(true);
+						return t;
+					});
+		});
+
 	}
 
 	synchronized void closeConnection(ShaclSailConnection connection) {
@@ -292,6 +312,8 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 
 		super.init();
 
+		executorService.init();
+
 		if (shapesRepo != null) {
 			shapesRepo.shutDown();
 			shapesRepo = null;
@@ -317,13 +339,11 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 			shapesRepoConnection.begin(IsolationLevels.NONE);
 			shapesRepoConnection.commit();
 		}
-
-		assert executorService[0] == null;
-
 	}
 
 	@InternalUseOnly
-	public List<Shape> getShapes(RepositoryConnection shapesRepoConnection) throws SailException {
+	public List<Shape> getShapes(RepositoryConnection shapesRepoConnection, ShaclSailConnection currentConnection)
+			throws SailException {
 		SailRepository shapesRepoWithReasoning = new SailRepository(
 				SchemaCachingRDFSInferencer.fastInstantiateFrom(shaclVocabulary, new MemoryStore(), false));
 
@@ -332,13 +352,15 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 
 		try (SailRepositoryConnection shapesRepoWithReasoningConnection = shapesRepoWithReasoning.getConnection()) {
 			shapesRepoWithReasoningConnection.begin(IsolationLevels.NONE);
-			try (RepositoryResult<Statement> statements = shapesRepoConnection.getStatements(null, null, null,
-					false)) {
+
+			try (RepositoryResult<Statement> statements = shapesRepoConnection.getStatements(null, null, null, false)) {
 				shapesRepoWithReasoningConnection.add(statements);
 			}
+
 			enrichShapes(shapesRepoWithReasoningConnection);
 			shapesRepoWithReasoningConnection.commit();
-			shapes = Shape.Factory.getShapes(shapesRepoWithReasoningConnection, this);
+			shapes = Shape.Factory.getShapes(new ShapeSource(shapesRepoWithReasoningConnection, currentConnection),
+					this);
 		}
 
 		shapesRepoWithReasoning.shutDown();
@@ -360,44 +382,31 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 		if (!terminated) {
 			shutdownExecutorService(true);
 		}
-
-		executorService[0] = null;
 	}
 
 	private boolean shutdownExecutorService(boolean forced) {
-		if (executorService[0] != null) {
-			boolean terminated = false;
+		boolean terminated = false;
 
-			executorService[0].shutdown();
-			try {
-				terminated = executorService[0].awaitTermination(200, TimeUnit.MILLISECONDS);
-			} catch (InterruptedException ignored) {
-			}
-
-			if (forced && !terminated) {
-				executorService[0].shutdownNow();
-				logger.error("Shutdown ShaclSail while validation is still running.");
-				terminated = true;
-			}
-
-			return terminated;
+		executorService.shutdown();
+		try {
+			terminated = executorService.awaitTermination(200, TimeUnit.MILLISECONDS);
+		} catch (InterruptedException ignored) {
+			Thread.currentThread().interrupt();
 		}
-		return true;
+
+		if (forced && !terminated) {
+			executorService.shutdownNow();
+			logger.error("Shutdown ShaclSail while validation is still running.");
+			terminated = true;
+		}
+
+		return terminated;
+
 	}
 
 	synchronized <T> Future<T> submitRunnableToExecutorService(Callable<T> runnable) {
-		if (executorService[0] == null) {
-			executorService[0] = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2,
-					r -> {
-						Thread t = Executors.defaultThreadFactory().newThread(r);
-						// this thread pool does not need to stick around if the all other threads are done, because it
-						// is only used for SHACL validation and if all other threads have ended then there would be no
-						// thread to receive the validation results.
-						t.setDaemon(true);
-						return t;
-					});
-		}
-		return executorService[0].submit(runnable);
+
+		return executorService.submit(runnable);
 	}
 
 	@Override
@@ -510,9 +519,9 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	}
 
 	@InternalUseOnly
-	public List<Shape> getCurrentShapes() {
+	public List<Shape> getCurrentShapes(ShaclSailConnection currentConnection) {
 		try (SailRepositoryConnection connection = shapesRepo.getConnection()) {
-			return getShapes(connection);
+			return getShapes(connection, currentConnection);
 		}
 	}
 
@@ -667,6 +676,88 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 
 		public String getValue() {
 			return value;
+		}
+	}
+
+	private static class RevivableExecutorService implements ExecutorService {
+		private final Supplier<ExecutorService> supplier;
+		ExecutorService delegate;
+
+		public RevivableExecutorService(Supplier<ExecutorService> supplier) {
+			this.supplier = supplier;
+		}
+
+		public void init() {
+			assert delegate == null || delegate.isTerminated();
+			delegate = supplier.get();
+		}
+
+		@Override
+		public void shutdown() {
+			delegate.shutdown();
+		}
+
+		@Override
+		public List<Runnable> shutdownNow() {
+			return delegate.shutdownNow();
+		}
+
+		@Override
+		public boolean isShutdown() {
+			return delegate.isShutdown();
+		}
+
+		@Override
+		public boolean isTerminated() {
+			return delegate.isTerminated();
+		}
+
+		@Override
+		public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+			return delegate.awaitTermination(timeout, unit);
+		}
+
+		@Override
+		public <T> Future<T> submit(Callable<T> task) {
+			return delegate.submit(task);
+		}
+
+		@Override
+		public <T> Future<T> submit(Runnable task, T result) {
+			return delegate.submit(task, result);
+		}
+
+		@Override
+		public Future<?> submit(Runnable task) {
+			return delegate.submit(task);
+		}
+
+		@Override
+		public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks) throws InterruptedException {
+			return delegate.invokeAll(tasks);
+		}
+
+		@Override
+		public <T> List<Future<T>> invokeAll(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+				throws InterruptedException {
+			return delegate.invokeAll(tasks, timeout, unit);
+		}
+
+		@Override
+		public <T> T invokeAny(Collection<? extends Callable<T>> tasks)
+				throws InterruptedException, ExecutionException {
+			return delegate.invokeAny(tasks);
+		}
+
+		@Override
+		public <T> T invokeAny(Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit)
+				throws InterruptedException, ExecutionException, TimeoutException {
+			return delegate.invokeAny(tasks, timeout, unit);
+		}
+
+		@Override
+		public void execute(Runnable command) {
+			delegate.execute(command);
 		}
 	}
 

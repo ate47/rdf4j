@@ -26,6 +26,7 @@ import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.sail.shacl.SourceConstraintComponent;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclAstLists;
+import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.FilterPlanNode;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.LanguageInFilter;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNode;
@@ -36,10 +37,10 @@ public class LanguageInConstraintComponent extends SimpleAbstractConstraintCompo
 	private final ArrayList<String> languageRanges;
 	private final Set<String> lowerCaseLanguageIn;
 
-	public LanguageInConstraintComponent(RepositoryConnection connection,
+	public LanguageInConstraintComponent(ShapeSource shapeSource,
 			Resource languageIn) {
 		super(languageIn);
-		this.languageIn = ShaclAstLists.toList(connection, languageIn, Value.class)
+		this.languageIn = ShaclAstLists.toList(shapeSource, languageIn, Value.class)
 				.stream()
 				.map(Value::stringValue)
 				.collect(Collectors.toList());

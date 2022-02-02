@@ -27,6 +27,7 @@ import org.eclipse.rdf4j.sail.shacl.ShaclSail;
 import org.eclipse.rdf4j.sail.shacl.ShaclSailConnection;
 import org.eclipse.rdf4j.sail.shacl.Utils;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclProperties;
+import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -138,7 +139,7 @@ public class ComplexBenchmark {
 
 			try (Stream<Statement> stream = connection.getStatements(null, SHACL.PROPERTY, null).stream()) {
 				stream.map(Statement::getObject).forEach(o -> {
-					new ShaclProperties((Resource) o, connection);
+					new ShaclProperties((Resource) o, new ShapeSource(connection, null));
 				});
 			}
 

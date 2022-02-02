@@ -18,6 +18,7 @@ import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.RdfsSubClassOfReasoner;
+import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
 import org.eclipse.rdf4j.sail.shacl.ast.StatementMatcher;
 import org.eclipse.rdf4j.sail.shacl.ast.constraintcomponents.ConstraintComponent;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNode;
@@ -29,9 +30,9 @@ public class InversePath extends Path {
 
 	private final Path inversePath;
 
-	public InversePath(Resource id, Resource inversePath, RepositoryConnection connection) {
+	public InversePath(Resource id, Resource inversePath, ShapeSource shapeSource) {
 		super(id);
-		this.inversePath = Path.buildPath(connection, inversePath);
+		this.inversePath = Path.buildPath(shapeSource, inversePath);
 
 	}
 

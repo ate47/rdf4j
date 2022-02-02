@@ -28,6 +28,7 @@ import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.RDF4J;
+import org.eclipse.rdf4j.repository.RepositoryResult;
 import org.eclipse.rdf4j.repository.sail.SailRepositoryConnection;
 import org.eclipse.rdf4j.sail.NotifyingSailConnection;
 import org.eclipse.rdf4j.sail.Sail;
@@ -708,13 +709,13 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 			stats.setEmptyIncludingCurrentTransaction(isEmpty());
 
-			List<Shape> shapesBeforeRefresh = sail.getCurrentShapes();
+			List<Shape> shapesBeforeRefresh = sail.getCurrentShapes(this);
 			List<Shape> shapesAfterRefresh;
 
 			if (isShapeRefreshNeeded) {
 				isShapeRefreshNeeded = false;
 				shapesModifiedInCurrentTransaction = true;
-				shapesAfterRefresh = sail.getShapes(shapesRepoConnection);
+				shapesAfterRefresh = sail.getShapes(shapesRepoConnection, this);
 			} else {
 				shapesAfterRefresh = shapesBeforeRefresh;
 			}
@@ -922,8 +923,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 		if (!isActive()) {
 			throw new IllegalStateException("No active transaction!");
 		}
-
-		return validate(sail.getShapes(shapesRepoConnection), true);
+		return validate(sail.getShapes(shapesRepoConnection, this), true);
 	}
 
 	Settings getTransactionSettings() {

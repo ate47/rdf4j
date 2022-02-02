@@ -44,7 +44,7 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect = shaclSail.getCurrentShapes()
+				List<PlanNode> collect = shaclSail.getCurrentShapes(connection)
 						.stream()
 						.map(shape -> shape.generatePlans(connectionsGroup, false, false))
 						.filter(s -> !(s instanceof EmptyNode))
@@ -57,7 +57,7 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect2 = shaclSail.getCurrentShapes()
+				List<PlanNode> collect2 = shaclSail.getCurrentShapes(connection)
 						.stream()
 						.map(shape -> shape.generatePlans(connectionsGroup, false, false))
 						.filter(s -> !(s instanceof EmptyNode))
@@ -106,7 +106,7 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect1 = shaclSail.getCurrentShapes()
+				List<PlanNode> collect1 = shaclSail.getCurrentShapes(connection)
 						.stream()
 						.map(shape -> shape.generatePlans(connectionsGroup, false, false))
 						.filter(s -> !(s instanceof EmptyNode))
@@ -120,7 +120,7 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect2 = shaclSail.getCurrentShapes()
+				List<PlanNode> collect2 = shaclSail.getCurrentShapes(connection)
 						.stream()
 						.map(shape -> shape.generatePlans(connectionsGroup, false, false))
 						.filter(s -> !(s instanceof EmptyNode))
@@ -132,7 +132,7 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect3 = shaclSail.getCurrentShapes()
+				List<PlanNode> collect3 = shaclSail.getCurrentShapes(connection)
 						.stream()
 						.map(shape -> shape.generatePlans(connectionsGroup, false, false))
 						.filter(s -> !(s instanceof EmptyNode))

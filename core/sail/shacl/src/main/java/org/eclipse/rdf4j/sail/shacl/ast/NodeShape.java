@@ -16,7 +16,6 @@ import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.SHACL;
-import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.RdfsSubClassOfReasoner;
 import org.eclipse.rdf4j.sail.shacl.ShaclSail;
@@ -45,20 +44,20 @@ public class NodeShape extends Shape implements ConstraintComponent, Identifiabl
 	}
 
 	public static NodeShape getInstance(ShaclProperties properties,
-			RepositoryConnection connection, Cache cache, boolean produceValidationReports, ShaclSail shaclSail) {
+			ShapeSource shapeSource, Cache cache, boolean produceValidationReports, ShaclSail shaclSail) {
 
 		Shape shape = cache.get(properties.getId());
 		if (shape == null) {
 			shape = new NodeShape(produceValidationReports);
 			cache.put(properties.getId(), shape);
-			shape.populate(properties, connection, cache, shaclSail);
+			shape.populate(properties, shapeSource, cache, shaclSail);
 		}
 
 		return (NodeShape) shape;
 	}
 
 	@Override
-	public void populate(ShaclProperties properties, RepositoryConnection connection,
+	public void populate(ShaclProperties properties, ShapeSource connection,
 			Cache cache, ShaclSail shaclSail) {
 		super.populate(properties, connection, cache, shaclSail);
 

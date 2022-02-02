@@ -16,7 +16,6 @@ import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.SHACL;
-import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.RdfsSubClassOfReasoner;
 import org.eclipse.rdf4j.sail.shacl.ShaclSail;
@@ -57,13 +56,13 @@ public class PropertyShape extends Shape implements ConstraintComponent, Identif
 		this.path = propertyShape.path;
 	}
 
-	public static PropertyShape getInstance(ShaclProperties properties, RepositoryConnection connection, Cache cache,
+	public static PropertyShape getInstance(ShaclProperties properties, ShapeSource shapeSource, Cache cache,
 			ShaclSail shaclSail) {
 		Shape shape = cache.get(properties.getId());
 		if (shape == null) {
 			shape = new PropertyShape();
 			cache.put(properties.getId(), shape);
-			shape.populate(properties, connection, cache, shaclSail);
+			shape.populate(properties, shapeSource, cache, shaclSail);
 		}
 
 		if (shape.constraintComponents.isEmpty()) {
@@ -74,7 +73,7 @@ public class PropertyShape extends Shape implements ConstraintComponent, Identif
 	}
 
 	@Override
-	public void populate(ShaclProperties properties, RepositoryConnection connection,
+	public void populate(ShaclProperties properties, ShapeSource connection,
 			Cache cache, ShaclSail shaclSail) {
 		super.populate(properties, connection, cache, shaclSail);
 

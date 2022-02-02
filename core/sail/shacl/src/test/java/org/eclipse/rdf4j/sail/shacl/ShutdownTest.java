@@ -72,13 +72,13 @@ public class ShutdownTest {
 	public void testThatGarbadgeCollectionWillShutdownTheThreadPool()
 			throws InterruptedException, NoSuchFieldException, IllegalAccessException {
 
-		ExecutorService[] executorServices = startShaclSailAndTask();
+		ExecutorService executorServices = startShaclSailAndTask();
 
-		assertFalse(executorServices[0].isShutdown());
+		assertFalse(executorServices.isShutdown());
 
 		for (int i = 0; i < 100; i++) {
 			System.gc();
-			if (executorServices[0].isShutdown()) {
+			if (executorServices.isShutdown()) {
 				return;
 			}
 			System.out.println(i);
@@ -88,7 +88,7 @@ public class ShutdownTest {
 		fail("Executor service should have been shutdown due to GC");
 	}
 
-	private ExecutorService[] startShaclSailAndTask()
+	private ExecutorService startShaclSailAndTask()
 			throws InterruptedException, NoSuchFieldException, IllegalAccessException {
 		ShaclSail shaclSail = new ShaclSail(new MemoryStore());
 		shaclSail.init();
@@ -104,7 +104,7 @@ public class ShutdownTest {
 		Field field = c.getDeclaredField("executorService");
 		field.setAccessible(true);
 
-		return (ExecutorService[]) field.get(shaclSail);
+		return (ExecutorService) field.get(shaclSail);
 
 	}
 

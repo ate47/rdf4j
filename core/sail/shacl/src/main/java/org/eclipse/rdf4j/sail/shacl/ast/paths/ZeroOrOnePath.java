@@ -19,6 +19,7 @@ import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.RdfsSubClassOfReasoner;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclUnsupportedException;
+import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
 import org.eclipse.rdf4j.sail.shacl.ast.StatementMatcher;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNode;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNodeWrapper;
@@ -27,9 +28,9 @@ public class ZeroOrOnePath extends Path {
 
 	private final Path zeroOrOnePath;
 
-	public ZeroOrOnePath(Resource id, Resource zeroOrOnePath, RepositoryConnection connection) {
+	public ZeroOrOnePath(Resource id, Resource zeroOrOnePath, ShapeSource shapeSource) {
 		super(id);
-		this.zeroOrOnePath = Path.buildPath(connection, zeroOrOnePath);
+		this.zeroOrOnePath = Path.buildPath(shapeSource, zeroOrOnePath);
 
 	}
 

@@ -19,6 +19,7 @@ import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.RdfsSubClassOfReasoner;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclUnsupportedException;
+import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
 import org.eclipse.rdf4j.sail.shacl.ast.StatementMatcher;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNode;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNodeWrapper;
@@ -27,9 +28,9 @@ public class AlternativePath extends Path {
 
 	private final Path alternativePath;
 
-	public AlternativePath(Resource id, Resource alternativePath, RepositoryConnection connection) {
+	public AlternativePath(Resource id, Resource alternativePath, ShapeSource shapeSource) {
 		super(id);
-		this.alternativePath = Path.buildPath(connection, alternativePath);
+		this.alternativePath = Path.buildPath(shapeSource, alternativePath);
 
 	}
 

@@ -97,9 +97,9 @@ public class ShaclProperties {
 	public ShaclProperties() {
 	}
 
-	public ShaclProperties(Resource id, RepositoryConnection connection) {
+	public ShaclProperties(Resource id, ShapeSource connection) {
 		this.id = id;
-		try (Stream<Statement> stream = connection.getStatements(id, null, null, true).stream()) {
+		try (Stream<Statement> stream = connection.getAllStatements(id).stream()) {
 			stream.forEach(statement -> {
 				String predicate = statement.getPredicate().toString();
 				Value object = statement.getObject();

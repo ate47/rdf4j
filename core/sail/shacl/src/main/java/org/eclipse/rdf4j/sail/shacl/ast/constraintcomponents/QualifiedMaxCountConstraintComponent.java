@@ -18,7 +18,6 @@ import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.SHACL;
-import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.ShaclSail;
 import org.eclipse.rdf4j.sail.shacl.SourceConstraintComponent;
@@ -28,6 +27,7 @@ import org.eclipse.rdf4j.sail.shacl.ast.PropertyShape;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclProperties;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclUnsupportedException;
 import org.eclipse.rdf4j.sail.shacl.ast.Shape;
+import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
 import org.eclipse.rdf4j.sail.shacl.ast.StatementMatcher;
 import org.eclipse.rdf4j.sail.shacl.ast.ValidationQuery;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.BulkedExternalLeftOuterJoin;
@@ -49,19 +49,19 @@ public class QualifiedMaxCountConstraintComponent extends AbstractConstraintComp
 	Boolean qualifiedValueShapesDisjoint;
 	Long qualifiedMaxCount;
 
-	public QualifiedMaxCountConstraintComponent(Resource id, RepositoryConnection connection,
+	public QualifiedMaxCountConstraintComponent(Resource id, ShapeSource shapeSource,
 			Cache cache, ShaclSail shaclSail, Boolean qualifiedValueShapesDisjoint, Long qualifiedMaxCount) {
 		super(id);
 
-		ShaclProperties p = new ShaclProperties(id, connection);
+		ShaclProperties p = new ShaclProperties(id, shapeSource);
 
 		this.qualifiedValueShapesDisjoint = qualifiedValueShapesDisjoint;
 		this.qualifiedMaxCount = qualifiedMaxCount;
 
 		if (p.getType() == SHACL.NODE_SHAPE) {
-			qualifiedValueShape = NodeShape.getInstance(p, connection, cache, false, shaclSail);
+			qualifiedValueShape = NodeShape.getInstance(p, shapeSource, cache, false, shaclSail);
 		} else if (p.getType() == SHACL.PROPERTY_SHAPE) {
-			qualifiedValueShape = PropertyShape.getInstance(p, connection, cache, shaclSail);
+			qualifiedValueShape = PropertyShape.getInstance(p, shapeSource, cache, shaclSail);
 		} else {
 			throw new IllegalStateException("Unknown shape type for " + p.getId());
 		}

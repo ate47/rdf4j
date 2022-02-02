@@ -17,7 +17,6 @@ import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.vocabulary.SHACL;
-import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.RdfsSubClassOfReasoner;
 import org.eclipse.rdf4j.sail.shacl.ShaclSail;
@@ -29,6 +28,7 @@ import org.eclipse.rdf4j.sail.shacl.ast.ShaclAstLists;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclProperties;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclUnsupportedException;
 import org.eclipse.rdf4j.sail.shacl.ast.Shape;
+import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
 import org.eclipse.rdf4j.sail.shacl.ast.SparqlFragment;
 import org.eclipse.rdf4j.sail.shacl.ast.StatementMatcher;
 import org.eclipse.rdf4j.sail.shacl.ast.ValidationQuery;
@@ -45,17 +45,17 @@ import org.eclipse.rdf4j.sail.shacl.ast.targets.TargetChain;
 public class OrConstraintComponent extends LogicalOperatorConstraintComponent {
 	List<Shape> or;
 
-	public OrConstraintComponent(Resource id, RepositoryConnection connection,
+	public OrConstraintComponent(Resource id, ShapeSource shapeSource,
 			Cache cache, ShaclSail shaclSail) {
 		super(id);
-		or = ShaclAstLists.toList(connection, id, Resource.class)
+		or = ShaclAstLists.toList(shapeSource, id, Resource.class)
 				.stream()
-				.map(r -> new ShaclProperties(r, connection))
+				.map(r -> new ShaclProperties(r, shapeSource))
 				.map(p -> {
 					if (p.getType() == SHACL.NODE_SHAPE) {
-						return NodeShape.getInstance(p, connection, cache, false, shaclSail);
+						return NodeShape.getInstance(p, shapeSource, cache, false, shaclSail);
 					} else if (p.getType() == SHACL.PROPERTY_SHAPE) {
-						return PropertyShape.getInstance(p, connection, cache, shaclSail);
+						return PropertyShape.getInstance(p, shapeSource, cache, shaclSail);
 					}
 					throw new IllegalStateException("Unknown shape type for " + p.getId());
 				})

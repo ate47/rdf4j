@@ -19,11 +19,11 @@ import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.DASH;
-import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.RdfsSubClassOfReasoner;
 import org.eclipse.rdf4j.sail.shacl.SourceConstraintComponent;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclAstLists;
+import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
 import org.eclipse.rdf4j.sail.shacl.ast.SparqlFragment;
 import org.eclipse.rdf4j.sail.shacl.ast.StatementMatcher;
 import org.eclipse.rdf4j.sail.shacl.ast.paths.Path;
@@ -45,10 +45,10 @@ public class DashHasValueInConstraintComponent extends AbstractConstraintCompone
 
 	final Set<Value> hasValueIn;
 
-	public DashHasValueInConstraintComponent(Resource hasValueIn, RepositoryConnection connection) {
+	public DashHasValueInConstraintComponent(ShapeSource shapeSource, Resource hasValueIn) {
 		super(hasValueIn);
 		this.hasValueIn = Collections
-				.unmodifiableSet(new LinkedHashSet<>(ShaclAstLists.toList(connection, hasValueIn, Value.class)));
+				.unmodifiableSet(new LinkedHashSet<>(ShaclAstLists.toList(shapeSource, hasValueIn, Value.class)));
 	}
 
 	public DashHasValueInConstraintComponent(DashHasValueInConstraintComponent dashHasValueInConstraintComponent) {

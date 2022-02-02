@@ -37,12 +37,12 @@ import org.eclipse.rdf4j.sail.memory.MemoryStore;
 public class Utils {
 
 	public static void loadShapeData(ShaclSail sail, String resourceName) throws IOException {
-		assert resourceName.endsWith(".trig"): "Not a RDF Trig file: "+resourceName;
+		assert resourceName.endsWith(".trig") : "Not a RDF Trig file: " + resourceName;
 		sail.init();
 		sail.disableValidation();
 		Model shapes;
 		try (InputStream shapesData = getResourceAsStream(resourceName)) {
-			assert shapesData != null : "Could not find: "+resourceName;
+			assert shapesData != null : "Could not find: " + resourceName;
 			shapes = Rio.parse(shapesData, "", RDFFormat.TRIG);
 		}
 		try (SailConnection conn = sail.getConnection()) {
@@ -71,10 +71,10 @@ public class Utils {
 	}
 
 	public static void loadShapeData(SailRepository repo, String resourceName) throws IOException {
-		assert resourceName.endsWith(".trig"): "Not a RDF Trig file: "+resourceName;
+		assert resourceName.endsWith(".trig") : "Not a RDF Trig file: " + resourceName;
 
 		try (InputStream shapesData = getResourceAsStream(resourceName)) {
-			assert shapesData != null : "Could not find: "+resourceName;
+			assert shapesData != null : "Could not find: " + resourceName;
 			try (RepositoryConnection conn = repo.getConnection()) {
 				conn.begin(IsolationLevels.NONE, ShaclSail.TransactionSettings.ValidationApproach.Disabled);
 				conn.add(shapesData, "", RDFFormat.TRIG);
@@ -101,7 +101,7 @@ public class Utils {
 
 	public static void loadShapeData(SailRepository repo, URL resourceName)
 			throws RDF4JException, UnsupportedRDFormatException, IOException {
-		assert resourceName.toString().endsWith(".trig"): "Not a RDF Trig file: "+resourceName;
+		assert resourceName.toString().endsWith(".trig") : "Not a RDF Trig file: " + resourceName;
 
 		try (RepositoryConnection conn = repo.getConnection()) {
 			conn.begin(IsolationLevels.NONE, ShaclSail.TransactionSettings.ValidationApproach.Disabled);
@@ -129,7 +129,7 @@ public class Utils {
 	}
 
 	public static SailRepository getInitializedShaclRepository(URL resourceName) {
-		assert resourceName.toString().endsWith(".trig"): "Not a RDF Trig file: "+resourceName;
+		assert resourceName.toString().endsWith(".trig") : "Not a RDF Trig file: " + resourceName;
 		SailRepository repo = new SailRepository(new ShaclSail(new MemoryStore()));
 		try {
 			Utils.loadShapeData(repo, resourceName);
@@ -166,9 +166,8 @@ public class Utils {
 
 	}
 
-
-
-	public static void loadShapeData(SailRepository repo, URL resourceName, RDFFormat format, IRI shaclShapeGraph) throws IOException {
+	public static void loadShapeData(SailRepository repo, URL resourceName, RDFFormat format, IRI shaclShapeGraph)
+			throws IOException {
 
 		try (RepositoryConnection conn = repo.getConnection()) {
 			conn.begin(IsolationLevels.NONE, ShaclSail.TransactionSettings.ValidationApproach.Disabled);

@@ -52,7 +52,8 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class LoadingBenchmark {
 
-	@Param({ "NONE", "SNAPSHOT", "SERIALIZABLE" })
+//	@Param({ "NONE", "SNAPSHOT", "SERIALIZABLE" })
+	@Param({ "SNAPSHOT" })
 	public String isolationLevel;
 
 	private static final List<Statement> statementList = getStatements();
@@ -83,6 +84,43 @@ public class LoadingBenchmark {
 			statementList.forEach(getStatementConsumer(connection));
 
 			connection.commit();
+		}
+
+	}
+
+	@Benchmark
+	public void loadSyntheticOneStatementPerTransaction() {
+
+		MemoryStore memoryStore = new MemoryStore();
+		memoryStore.init();
+
+		try (NotifyingSailConnection connection = memoryStore.getConnection()) {
+
+			for (Statement statement : statementList) {
+				connection.begin(IsolationLevels.valueOf(isolationLevel));
+				getStatementConsumer(connection).accept(statement);
+				connection.commit();
+			}
+
+		}
+
+	}
+
+	@Benchmark
+	public void loadSyntheticOneStatementPerTransactionClearPrevious() {
+
+		MemoryStore memoryStore = new MemoryStore();
+		memoryStore.init();
+
+		try (NotifyingSailConnection connection = memoryStore.getConnection()) {
+
+			for (Statement statement : statementList) {
+				connection.begin(IsolationLevels.valueOf(isolationLevel));
+				connection.clear();
+				getStatementConsumer(connection).accept(statement);
+				connection.commit();
+			}
+
 		}
 
 	}

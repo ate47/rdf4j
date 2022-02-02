@@ -124,6 +124,8 @@ abstract public class AbstractShaclTest {
 			"test-cases/datatype/notTargetNode",
 			"test-cases/datatype/notTargetShape",
 			"test-cases/datatype/simple",
+			"test-cases/datatype/simpleDefaultGraph",
+			"test-cases/datatype/simpleNamedGraph",
 			"test-cases/datatype/simpleNested",
 			"test-cases/datatype/simpleNested2",
 			"test-cases/datatype/simpleNode",
@@ -324,22 +326,6 @@ abstract public class AbstractShaclTest {
 				.getResourceAsStream(testCase + "/shacl.trig")) {
 			assert Objects.nonNull(resourceAsStream) : "Could not find: " + testCase + "/shacl.trig";
 			shacl = IOUtils.toString(resourceAsStream, StandardCharsets.UTF_8);
-
-//			File file = new File("/Users/havardottestad/Documents/Programming/rdf4j/core/sail/shacl/src/test/resources/" + testCase + "/shacl.ttl");
-//			file.delete();
-
-//			try (FileWriter fileWriter = new FileWriter("/Users/havardottestad/Documents/Programming/rdf4j/core/sail/shacl/src/test/resources/"+testCase + "/shacl.trig", StandardCharsets.UTF_8)) {
-//				Model parse = Rio.parse(new StringReader(shacl), RDFFormat.TRIG);
-//				parse.setNamespace(RDF4J.NS);
-//				List<Statement> statements = new ArrayList<>(parse);
-//				parse.clear();
-//				for (Statement statement : statements) {
-//					parse.remove(statement);
-//					parse.add(statement.getSubject(), statement.getPredicate(), statement.getObject(), RDF4J.SHACL_SHAPE_GRAPH);
-//				}
-//				WriterConfig set = new WriterConfig().set(BasicWriterSettings.INLINE_BLANK_NODES, true).set(BasicWriterSettings.PRETTY_PRINT, true).set(BasicWriterSettings.XSD_STRING_TO_PLAIN_LITERAL, true);
-//				Rio.write(parse, fileWriter, RDFFormat.TRIG, set);
-//			}
 
 		} catch (IOException e) {
 			throw new IllegalStateException(e);
@@ -595,7 +581,7 @@ abstract public class AbstractShaclTest {
 
 		Dataset shaclDataset = DatasetFactory.create();
 
-		RDFDataMgr.read(shaclDataset, new StringReader(testCase.getShaclData()), "",  RDFLanguages.TRIG);
+		RDFDataMgr.read(shaclDataset, new StringReader(testCase.getShaclData()), "", RDFLanguages.TRIG);
 
 		org.apache.jena.rdf.model.Model shacl = shaclDataset.getNamedModel(RDF4J.SHACL_SHAPE_GRAPH.toString());
 
@@ -986,7 +972,7 @@ abstract public class AbstractShaclTest {
 		SailRepository shaclRepository = getShaclSail(testCase, true);
 		try {
 
-			List<Shape> shapes = ((ShaclSail) shaclRepository.getSail()).getCurrentShapes();
+			List<Shape> shapes = ((ShaclSail) shaclRepository.getSail()).getCurrentShapes(null);
 
 			Model shapesModel = new DynamicModelFactory().createEmptyModel();
 			HashSet<Resource> dedupe = new HashSet<>();

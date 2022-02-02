@@ -99,7 +99,7 @@ public class W3cComplianceTest {
 	}
 
 	private Model extractShapesModel(ShaclSail shaclSail) {
-		List<Shape> shapes = shaclSail.getCurrentShapes();
+		List<Shape> shapes = shaclSail.getCurrentShapes(null);
 
 		HashSet<Resource> dedupe = new HashSet<>();
 		DynamicModel model = new DynamicModelFactory().createEmptyModel();
