@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -75,6 +76,7 @@ import org.eclipse.rdf4j.sail.shacl.ast.targets.TargetClass;
 import org.eclipse.rdf4j.sail.shacl.ast.targets.TargetNode;
 import org.eclipse.rdf4j.sail.shacl.ast.targets.TargetObjectsOf;
 import org.eclipse.rdf4j.sail.shacl.ast.targets.TargetSubjectsOf;
+import org.eclipse.rdf4j.sail.shacl.wrapper.shape.ShapeSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -441,13 +443,19 @@ abstract public class Shape implements ConstraintComponent, Identifiable, Export
 
 	public static class Factory {
 
-		public static List<Shape> getShapes(ShapeSource shapeSource, ShaclSail shaclSail) {
+		public static List<ContextWithShapes> getShapes(ShapeSource shapeSource, ShaclSail shaclSail) {
 
-			List<Shape> parsed = parse(shapeSource, shaclSail);
-			List<Shape> split = split(parsed);
-			calculateTargetChain(split);
+			List<ContextWithShapes> parsed = parse(shapeSource, shaclSail);
 
-			return split;
+			return parsed.stream()
+					.map(contextWithShapes -> {
+						List<Shape> split = split(contextWithShapes.getShapes());
+						calculateTargetChain(split);
+						return new ContextWithShapes(contextWithShapes.getContexts(), split);
+
+					})
+					.collect(Collectors.toList());
+
 		}
 
 		private static void calculateTargetChain(List<Shape> parsed) {
@@ -495,22 +503,39 @@ abstract public class Shape implements ConstraintComponent, Identifiable, Export
 			}).collect(Collectors.toList());
 		}
 
-		private static List<Shape> parse(ShapeSource shapeSource, ShaclSail shaclSail) {
-			Cache cache = new Cache();
+		private static List<ContextWithShapes> parse(ShapeSource shapeSource, ShaclSail shaclSail) {
 
-			Set<Resource> resources = ShapeSource.getTargetableShapes(shapeSource);
+			try (Stream<Resource> allShapeContexts = shapeSource.getAllShapeContexts()) {
+				return allShapeContexts.map(shapeContext -> {
+					Cache cache = new Cache();
+					Resource[] contexts = { shapeContext };
+					return getShapesInContext(shapeSource, shaclSail, cache, contexts);
+				})
+						.collect(Collectors.toList());
 
-			return resources.stream()
-					.map(r -> new ShaclProperties(r, shapeSource))
-					.map(p -> {
-						if (p.getType() == SHACL.NODE_SHAPE) {
-							return NodeShape.getInstance(p, shapeSource, cache, true, shaclSail);
-						} else if (p.getType() == SHACL.PROPERTY_SHAPE) {
-							return PropertyShape.getInstance(p, shapeSource, cache, shaclSail);
-						}
-						throw new IllegalStateException("Unknown shape type for " + p.getId());
-					})
-					.collect(Collectors.toList());
+			}
+
+		}
+
+		private static ContextWithShapes getShapesInContext(ShapeSource shapeSource, ShaclSail shaclSail, Cache cache,
+				Resource[] contexts) {
+			ShapeSource shapeSourceWithContext = shapeSource.withContext(contexts);
+
+			try (Stream<Resource> resources = shapeSourceWithContext.getTargetableShape()) {
+				List<Shape> shapes = resources
+						.map(r -> new ShaclProperties(r, shapeSourceWithContext))
+						.map(p -> {
+							if (p.getType() == SHACL.NODE_SHAPE) {
+								return NodeShape.getInstance(p, shapeSourceWithContext, cache, true, shaclSail);
+							} else if (p.getType() == SHACL.PROPERTY_SHAPE) {
+								return PropertyShape.getInstance(p, shapeSourceWithContext, cache, shaclSail);
+							}
+							throw new IllegalStateException("Unknown shape type for " + p.getId());
+						})
+						.collect(Collectors.toList());
+
+				return new ContextWithShapes(contexts, shapes);
+			}
 		}
 
 	}

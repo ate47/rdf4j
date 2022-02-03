@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2019 Eclipse RDF4J contributors.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Distribution License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/org/documents/edl-v10.php.
- *******************************************************************************/
+ * Copyright (c) 2022 Eclipse RDF4J contributors.
+ *  All rights reserved. This program and the accompanying materials
+ *  are made available under the terms of the Eclipse Distribution License v1.0
+ *  which accompanies this distribution, and is available at
+ *  http://www.eclipse.org/org/documents/edl-v10.php.
+ ******************************************************************************/
 
-package org.eclipse.rdf4j.sail.shacl;
+package org.eclipse.rdf4j.sail.shacl.wrapper.data;
 
 import static org.eclipse.rdf4j.model.util.Statements.statement;
 
@@ -26,6 +26,7 @@ import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.sail.SailConnection;
 import org.eclipse.rdf4j.sail.SailException;
 import org.eclipse.rdf4j.sail.helpers.SailConnectionWrapper;
+import org.eclipse.rdf4j.sail.shacl.RdfsSubClassOfReasoner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,14 +34,12 @@ import org.slf4j.LoggerFactory;
  * Very simple RDFS backwardschaining connection that supports type inference on hasStatement and getStatement. It does
  * not support inference for SPARQL queries.
  */
-@Experimental
-@InternalUseOnly
 public class VerySimpleRdfsBackwardsChainingConnection extends SailConnectionWrapper {
 
 	private final RdfsSubClassOfReasoner rdfsSubClassOfReasoner;
 	private static final Logger logger = LoggerFactory.getLogger(VerySimpleRdfsBackwardsChainingConnection.class);
 
-	VerySimpleRdfsBackwardsChainingConnection(SailConnection wrappedCon,
+	public VerySimpleRdfsBackwardsChainingConnection(SailConnection wrappedCon,
 			RdfsSubClassOfReasoner rdfsSubClassOfReasoner) {
 		super(wrappedCon);
 		this.rdfsSubClassOfReasoner = rdfsSubClassOfReasoner;

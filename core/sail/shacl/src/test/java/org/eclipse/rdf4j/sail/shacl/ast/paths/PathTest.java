@@ -27,7 +27,8 @@ import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.WriterConfig;
 import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
-import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
+import org.eclipse.rdf4j.sail.shacl.wrapper.shape.RepositoryConnectionShapeSource;
+import org.eclipse.rdf4j.sail.shacl.wrapper.shape.ShapeSource;
 import org.junit.jupiter.api.Test;
 
 public class PathTest {
@@ -163,13 +164,16 @@ public class PathTest {
 	}
 
 	private DynamicModel convertToPathAndBackToModel(Model expected) {
+		Resource[] defaultContext = { null };
+
 		DynamicModel actual;
 		SailRepository sailRepository = new SailRepository(new MemoryStore());
 		try (SailRepositoryConnection connection = sailRepository.getConnection()) {
 			connection.add(expected);
 
 			actual = connection.getStatements(null, SHACL.PATH, null).stream().map(s -> {
-				Path path = Path.buildPath(new ShapeSource(connection, null), (Resource) s.getObject());
+				Path path = Path.buildPath(new RepositoryConnectionShapeSource(connection).withContext(defaultContext),
+						(Resource) s.getObject());
 				DynamicModel model = new DynamicModelFactory().createEmptyModel();
 				path.toModel((Resource) s.getObject(), null, model, new HashSet<>());
 

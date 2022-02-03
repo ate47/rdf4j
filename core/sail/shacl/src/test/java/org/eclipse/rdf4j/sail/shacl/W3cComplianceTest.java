@@ -41,6 +41,7 @@ import org.eclipse.rdf4j.repository.sail.SailRepositoryConnection;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
+import org.eclipse.rdf4j.sail.shacl.ast.ContextWithShapes;
 import org.eclipse.rdf4j.sail.shacl.ast.Shape;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -99,7 +100,7 @@ public class W3cComplianceTest {
 	}
 
 	private Model extractShapesModel(ShaclSail shaclSail) {
-		List<Shape> shapes = shaclSail.getCurrentShapes(null);
+		List<ContextWithShapes> shapes = shaclSail.getCurrentShapes();
 
 		HashSet<Resource> dedupe = new HashSet<>();
 		DynamicModel model = new DynamicModelFactory().createEmptyModel();

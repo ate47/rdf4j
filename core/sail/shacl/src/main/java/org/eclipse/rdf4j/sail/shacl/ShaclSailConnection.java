@@ -28,7 +28,6 @@ import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.RDF4J;
-import org.eclipse.rdf4j.repository.RepositoryResult;
 import org.eclipse.rdf4j.repository.sail.SailRepositoryConnection;
 import org.eclipse.rdf4j.sail.NotifyingSailConnection;
 import org.eclipse.rdf4j.sail.Sail;
@@ -39,6 +38,7 @@ import org.eclipse.rdf4j.sail.UpdateContext;
 import org.eclipse.rdf4j.sail.helpers.NotifyingSailConnectionWrapper;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
 import org.eclipse.rdf4j.sail.shacl.ShaclSail.TransactionSettings.ValidationApproach;
+import org.eclipse.rdf4j.sail.shacl.ast.ContextWithShapes;
 import org.eclipse.rdf4j.sail.shacl.ast.Shape;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.EmptyNode;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNode;
@@ -48,6 +48,7 @@ import org.eclipse.rdf4j.sail.shacl.ast.planNodes.ValidationTuple;
 import org.eclipse.rdf4j.sail.shacl.results.ValidationReport;
 import org.eclipse.rdf4j.sail.shacl.results.lazy.LazyValidationReport;
 import org.eclipse.rdf4j.sail.shacl.results.lazy.ValidationResultIterator;
+import org.eclipse.rdf4j.sail.shacl.wrapper.data.VerySimpleRdfsBackwardsChainingConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -262,7 +263,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	public void addStatement(UpdateContext modify, Resource subj, IRI pred, Value obj, Resource... contexts)
 			throws SailException {
 		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
-			shapesRepoConnection.add(subj, pred, obj);
+			shapesRepoConnection.add(subj, pred, obj, contexts);
 			isShapeRefreshNeeded = true;
 		} else {
 			super.addStatement(modify, subj, pred, obj, contexts);
@@ -273,7 +274,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	public void removeStatement(UpdateContext modify, Resource subj, IRI pred, Value obj, Resource... contexts)
 			throws SailException {
 		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
-			shapesRepoConnection.remove(subj, pred, obj);
+			shapesRepoConnection.remove(subj, pred, obj, contexts);
 			isShapeRefreshNeeded = true;
 		} else {
 			super.removeStatement(modify, subj, pred, obj, contexts);
@@ -283,7 +284,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	@Override
 	public void addStatement(Resource subj, IRI pred, Value obj, Resource... contexts) throws SailException {
 		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
-			shapesRepoConnection.add(subj, pred, obj);
+			shapesRepoConnection.add(subj, pred, obj, contexts);
 			isShapeRefreshNeeded = true;
 		} else {
 			super.addStatement(subj, pred, obj, contexts);
@@ -293,7 +294,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	@Override
 	public void removeStatements(Resource subj, IRI pred, Value obj, Resource... contexts) throws SailException {
 		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
-			shapesRepoConnection.remove(subj, pred, obj);
+			shapesRepoConnection.remove(subj, pred, obj, contexts);
 			isShapeRefreshNeeded = true;
 		} else {
 			super.removeStatements(subj, pred, obj, contexts);
@@ -384,7 +385,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 	}
 
-	private ValidationReport validate(List<Shape> shapes, boolean validateEntireBaseSail) {
+	private ValidationReport validate(List<ContextWithShapes> shapes, boolean validateEntireBaseSail) {
 
 		assert isValidationEnabled();
 
@@ -419,7 +420,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 				this::getRdfsSubClassOfReasoner, transactionSettings, sail.sparqlValidation);
 	}
 
-	private ValidationReport performValidation(List<Shape> shapes, boolean validateEntireBaseSail,
+	private ValidationReport performValidation(List<ContextWithShapes> shapes, boolean validateEntireBaseSail,
 			ConnectionsGroup connectionsGroup) {
 		long beforeValidation = 0;
 
@@ -430,19 +431,19 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 		try {
 			Stream<Callable<ValidationResultIterator>> callableStream = shapes
 					.stream()
+					.flatMap(s -> s.getShapes().stream()) // TODO: This needs to be changed when we want to support
+															// sh:shapeGraph
 					.map(shape -> new ShapePlanNodeTuple(shape,
 							shape.generatePlans(connectionsGroup, sail.isLogValidationPlans(),
 									validateEntireBaseSail)))
 					.filter(ShapePlanNodeTuple::hasPlanNode)
-					.map(shapePlanNodeTuple -> {
-						shapePlanNodeTuple.setPlanNode(new SingleCloseablePlanNode(shapePlanNodeTuple.getPlanNode()));
-						return shapePlanNodeTuple;
-					})
+					.map(shapePlanNodeTuple -> new ShapePlanNodeTuple(shapePlanNodeTuple.getShape(),
+							new SingleCloseablePlanNode(shapePlanNodeTuple.getPlanNode())))
 					.map(shapePlanNodeTuple -> () -> {
 
 						PlanNode planNode = shapePlanNodeTuple.getPlanNode();
 						ValidationExecutionLogger validationExecutionLogger = ValidationExecutionLogger
-								.getInstance(sail.isLogValidationViolations());
+								.getInstance(sail.isGlobalLogValidationExecution());
 
 						planNode.receiveLogger(validationExecutionLogger);
 
@@ -709,8 +710,8 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 			stats.setEmptyIncludingCurrentTransaction(isEmpty());
 
-			List<Shape> shapesBeforeRefresh = sail.getCurrentShapes(this);
-			List<Shape> shapesAfterRefresh;
+			List<ContextWithShapes> shapesBeforeRefresh = sail.getCurrentShapes();
+			List<ContextWithShapes> shapesAfterRefresh;
 
 			if (isShapeRefreshNeeded) {
 				isShapeRefreshNeeded = false;
@@ -725,7 +726,8 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 					// we can optimize which shapes to revalidate since no data has changed.
 					assert shapesBeforeRefresh != shapesAfterRefresh;
 
-					HashSet<Shape> shapesBeforeRefreshSet = new HashSet<>(shapesBeforeRefresh);
+					// TODO: We also need to compare the shapes within each ContextWithShapes
+					HashSet<ContextWithShapes> shapesBeforeRefreshSet = new HashSet<>(shapesBeforeRefresh);
 
 					shapesAfterRefresh = shapesAfterRefresh.stream()
 							.filter(shape -> !shapesBeforeRefreshSet.contains(shape))
@@ -796,7 +798,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 		return transactionSettings.getValidationApproach() == ValidationApproach.Bulk;
 	}
 
-	private ValidationReport serializableValidation(List<Shape> shapesAfterRefresh) {
+	private ValidationReport serializableValidation(List<ContextWithShapes> shapesAfterRefresh) {
 		try {
 			try {
 				try (ConnectionsGroup connectionsGroup = new ConnectionsGroup(
@@ -1036,7 +1038,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 	static class ShapePlanNodeTuple {
 		private final Shape shape;
-		private PlanNode planNode;
+		private final PlanNode planNode;
 
 		public ShapePlanNodeTuple(Shape shape, PlanNode planNode) {
 			this.shape = shape;
@@ -1049,10 +1051,6 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 		public PlanNode getPlanNode() {
 			return planNode;
-		}
-
-		public void setPlanNode(PlanNode planNode) {
-			this.planNode = planNode;
 		}
 
 		public boolean hasPlanNode() {

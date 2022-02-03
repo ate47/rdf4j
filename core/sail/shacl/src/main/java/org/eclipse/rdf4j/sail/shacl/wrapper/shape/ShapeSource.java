@@ -6,103 +6,38 @@
  *  http://www.eclipse.org/org/documents/edl-v10.php.
  ******************************************************************************/
 
-package org.eclipse.rdf4j.sail.shacl.ast;
+package org.eclipse.rdf4j.sail.shacl.wrapper.shape;
 
-import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
-import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RSX;
 import org.eclipse.rdf4j.model.vocabulary.SHACL;
-import org.eclipse.rdf4j.repository.RepositoryException;
-import org.eclipse.rdf4j.repository.sail.SailRepositoryConnection;
-import org.eclipse.rdf4j.sail.shacl.ShaclSailConnection;
 
-public class ShapeSource {
+public interface ShapeSource {
 
-	private final SailRepositoryConnection shapesRepoWithReasoningConnection;
-	private final ShaclSailConnection currentConnection;
+	ShapeSource withContext(Resource[] context);
 
-	public ShapeSource(SailRepositoryConnection shapesRepoWithReasoningConnection,
-			ShaclSailConnection currentConnection) {
-		this.shapesRepoWithReasoningConnection = shapesRepoWithReasoningConnection;
-		this.currentConnection = currentConnection;
-	}
+	Stream<Resource> getAllShapeContexts();
 
-	public static Set<Resource> getTargetableShapes(ShapeSource shapeSource) {
-		Set<Resource> collect;
-		try (Stream<Resource> TARGET_NODE = shapeSource.getSubjects(Predicates.TARGET_NODE)) {
-			try (Stream<Resource> TARGET_CLASS = shapeSource.getSubjects(Predicates.TARGET_CLASS)) {
-				try (Stream<Resource> TARGET_SUBJECTS_OF = shapeSource.getSubjects(Predicates.TARGET_SUBJECTS_OF)) {
-					try (Stream<Resource> TARGET_OBJECTS_OF = shapeSource.getSubjects(Predicates.TARGET_OBJECTS_OF)) {
-						try (Stream<Resource> TARGET = shapeSource.getSubjects(Predicates.TARGET_PROP)) {
-							try (Stream<Resource> RSX_TARGET_SHAPE = shapeSource
-									.getSubjects(Predicates.RSX_targetShape)) {
+	Stream<Resource> getTargetableShape();
 
-								collect = Stream
-										.of(TARGET_CLASS, TARGET_NODE, TARGET_OBJECTS_OF, TARGET_SUBJECTS_OF, TARGET,
-												RSX_TARGET_SHAPE)
-										.reduce(Stream::concat)
-										.get()
-										.collect(Collectors.toSet());
-							}
-						}
-					}
-				}
-			}
-		}
-		return collect;
-	}
+	boolean isType(Resource subject, IRI type);
 
-	public boolean isType(Resource subject, IRI type) {
-		return shapesRepoWithReasoningConnection.hasStatement(subject, RDF.TYPE, type, true);
-	}
+	Stream<Resource> getSubjects(Predicates predicate);
 
-	public Stream<Resource> getSubjects(Predicates predicate) {
-		return shapesRepoWithReasoningConnection.getStatements(null, predicate.getIRI(), null, true)
-				.stream()
-				.map(Statement::getSubject);
-	}
+	Stream<Value> getObjects(Resource subject, Predicates predicate);
 
-	public Stream<Value> getObjects(Resource subject, Predicates predicate) {
-		return shapesRepoWithReasoningConnection.getStatements(subject, predicate.getIRI(), null, true)
-				.stream()
-				.map(Statement::getObject);
-	}
+	Stream<Statement> getAllStatements(Resource id);
 
-	public CloseableIteration<Statement, RepositoryException> getAllStatements(Resource id) {
-		return shapesRepoWithReasoningConnection.getStatements(id, null, null, true);
-	}
+	Value getRdfFirst(Resource subject);
 
-	public Value getRdfFirst(Resource subject) {
-		return shapesRepoWithReasoningConnection.getStatements(subject, RDF.FIRST, null, true)
-				.stream()
-				.map(Statement::getObject)
-				.findAny()
-				.orElseThrow(() -> new IllegalStateException("Corrupt rdf:list at rdf:first: " + subject));
-	}
+	Resource getRdfRest(Resource subject);
 
-	public Resource getRdfRest(Resource subject) {
-		Value resource = shapesRepoWithReasoningConnection.getStatements(subject, RDF.REST, null, true)
-				.stream()
-				.map(Statement::getObject)
-				.findAny()
-				.orElseThrow(() -> new IllegalStateException("Corrupt rdf:list at rdf:rest: " + subject));
-		if (resource.isResource()) {
-			return ((Resource) resource);
-		} else {
-			throw new IllegalStateException("Corrupt rdf:list at rdf:rest: " + subject);
-		}
-
-	}
-
-	public enum Predicates {
+	enum Predicates {
 
 		ABSTRACT_RESULT(SHACL.ABSTRACT_RESULT),
 		AND_CONSTRAINT_COMPONENT(SHACL.AND_CONSTRAINT_COMPONENT),

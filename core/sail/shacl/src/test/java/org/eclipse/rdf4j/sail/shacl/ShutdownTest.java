@@ -101,7 +101,7 @@ public class ShutdownTest {
 		}
 
 		Class<?> c = ShaclSail.class;
-		Field field = c.getDeclaredField("executorService");
+		Field field = c.getDeclaredField("parallelValidationExecutorService");
 		field.setAccessible(true);
 
 		return (ExecutorService) field.get(shaclSail);

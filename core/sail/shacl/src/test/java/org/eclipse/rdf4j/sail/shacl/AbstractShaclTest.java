@@ -69,6 +69,7 @@ import org.eclipse.rdf4j.rio.WriterConfig;
 import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
 import org.eclipse.rdf4j.sail.shacl.ShaclSail.TransactionSettings.ValidationApproach;
+import org.eclipse.rdf4j.sail.shacl.ast.ContextWithShapes;
 import org.eclipse.rdf4j.sail.shacl.ast.Shape;
 import org.eclipse.rdf4j.sail.shacl.results.ValidationReport;
 import org.junit.jupiter.api.AfterEach;
@@ -80,6 +81,8 @@ import org.topbraid.jenax.util.JenaUtil;
 import org.topbraid.shacl.util.ModelPrinter;
 import org.topbraid.shacl.validation.ValidationUtil;
 import org.topbraid.shacl.vocabulary.SH;
+
+import ch.qos.logback.classic.Level;
 
 /**
  * @author Håvard Ottestad
@@ -577,6 +580,11 @@ abstract public class AbstractShaclTest {
 			return;
 		}
 
+		// skip tests where shapes are not in the rdf4j shapes graph
+		if (testCase.testCasePath.contains("DefaultGraph/") || testCase.testCasePath.contains("NamedGraph/")) {
+			return;
+		}
+
 		printTestCase(testCase);
 
 		Dataset shaclDataset = DatasetFactory.create();
@@ -972,7 +980,7 @@ abstract public class AbstractShaclTest {
 		SailRepository shaclRepository = getShaclSail(testCase, true);
 		try {
 
-			List<Shape> shapes = ((ShaclSail) shaclRepository.getSail()).getCurrentShapes(null);
+			List<ContextWithShapes> shapes = ((ShaclSail) shaclRepository.getSail()).getCurrentShapes();
 
 			Model shapesModel = new DynamicModelFactory().createEmptyModel();
 			HashSet<Resource> dedupe = new HashSet<>();
@@ -981,10 +989,10 @@ abstract public class AbstractShaclTest {
 			Model parse = new LinkedHashModel(testCase.getShacl());
 
 			// handle implicit targets in SHACL
-			parse.filter(null, RDF.TYPE, RDFS.CLASS).subjects().forEach(s -> {
-				if (parse.contains(s, RDF.TYPE, SHACL.PROPERTY_SHAPE)
-						|| parse.contains(s, RDF.TYPE, SHACL.NODE_SHAPE)) {
-					parse.add(s, SHACL.TARGET_CLASS, s);
+			parse.filter(null, RDF.TYPE, RDFS.CLASS).forEach(s -> {
+				if (parse.contains(s.getSubject(), RDF.TYPE, SHACL.PROPERTY_SHAPE)
+						|| parse.contains(s.getSubject(), RDF.TYPE, SHACL.NODE_SHAPE)) {
+					parse.add(s.getSubject(), SHACL.TARGET_CLASS, s.getSubject(), s.getContext());
 				}
 			});
 			parse.remove(null, RDF.TYPE, RDFS.CLASS);
@@ -1000,8 +1008,8 @@ abstract public class AbstractShaclTest {
 			shapesModel.remove(null, RDF.TYPE, SHACL.SHAPE);
 			shapesModel.remove(null, RDF.TYPE, SHACL.PROPERTY_SHAPE);
 
-			Model expected = Models.stripContexts(parse, RDF4J.SHACL_SHAPE_GRAPH);
-			Model actual = Models.stripContexts(shapesModel, RDF4J.SHACL_SHAPE_GRAPH);
+			Model expected = parse;// Models.stripContexts(parse, RDF4J.SHACL_SHAPE_GRAPH);
+			Model actual = shapesModel; // Models.stripContexts(shapesModel, RDF4J.SHACL_SHAPE_GRAPH);
 
 			if (!Models.isomorphic(expected, actual)) {
 				assertEquals(modelToString(expected), modelToString(actual));
@@ -1069,10 +1077,21 @@ abstract public class AbstractShaclTest {
 	}
 
 	void runWithAutomaticLogging(Runnable r) {
+		ch.qos.logback.classic.Logger shaclSailConnectionLogger = (ch.qos.logback.classic.Logger) LoggerFactory
+				.getLogger(ShaclSailConnection.class.getName());
+		Level shaclSailConnectionLoggerLevel = shaclSailConnectionLogger.getLevel();
+		ch.qos.logback.classic.Logger shaclSailLogger = (ch.qos.logback.classic.Logger) LoggerFactory
+				.getLogger(ShaclSail.class.getName());
+		Level shaclSailLoggerLevel = shaclSailLogger.getLevel();
+
 		try {
 			r.run();
 		} catch (Throwable t) {
 			fullLogging = true;
+
+			shaclSailConnectionLogger.setLevel(Level.DEBUG);
+			shaclSailLogger.setLevel(Level.DEBUG);
+
 			System.out.println("\n##############################################");
 			System.out.println("###### Re-running test with full logging #####");
 			System.out.println("##############################################\n");
@@ -1081,6 +1100,9 @@ abstract public class AbstractShaclTest {
 			throw new IllegalStateException("There should have been an assertion error before this exception!");
 		} finally {
 			fullLogging = false;
+			shaclSailConnectionLogger.setLevel(shaclSailConnectionLoggerLevel);
+			shaclSailLogger.setLevel(shaclSailLoggerLevel);
+
 		}
 	}
 

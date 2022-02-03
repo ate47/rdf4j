@@ -18,10 +18,10 @@ import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.ast.Exportable;
 import org.eclipse.rdf4j.sail.shacl.ast.Identifiable;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclUnsupportedException;
-import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
 import org.eclipse.rdf4j.sail.shacl.ast.Targetable;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNode;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNodeWrapper;
+import org.eclipse.rdf4j.sail.shacl.wrapper.shape.ShapeSource;
 
 public abstract class Path implements Identifiable, Exportable, Targetable {
 
@@ -43,7 +43,6 @@ public abstract class Path implements Identifiable, Exportable, Targetable {
 
 		if (id.isBNode()) {
 			List<Statement> collect = shapeSource.getAllStatements(id)
-					.stream()
 					.collect(Collectors.toList());
 
 			for (Statement statement : collect) {

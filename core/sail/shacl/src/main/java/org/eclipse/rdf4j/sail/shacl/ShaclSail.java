@@ -26,7 +26,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -56,12 +55,15 @@ import org.eclipse.rdf4j.sail.NotifyingSail;
 import org.eclipse.rdf4j.sail.NotifyingSailConnection;
 import org.eclipse.rdf4j.sail.Sail;
 import org.eclipse.rdf4j.sail.SailConflictException;
+import org.eclipse.rdf4j.sail.SailConnection;
 import org.eclipse.rdf4j.sail.SailException;
 import org.eclipse.rdf4j.sail.inferencer.fc.SchemaCachingRDFSInferencer;
 import org.eclipse.rdf4j.sail.inferencer.fc.SchemaCachingRDFSInferencerConnection;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
+import org.eclipse.rdf4j.sail.shacl.ast.ContextWithShapes;
 import org.eclipse.rdf4j.sail.shacl.ast.Shape;
-import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
+import org.eclipse.rdf4j.sail.shacl.wrapper.shape.CombinedShapeSource;
+import org.eclipse.rdf4j.sail.shacl.wrapper.shape.ShapeSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -198,51 +200,52 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 
 	private final AtomicBoolean initialized = new AtomicBoolean(false);
 
-	private final RevivableExecutorService executorService;
+	private final RevivableExecutorService parallelValidationExecutorService;
 
 	static class CleanableState implements Runnable {
 
 		private final AtomicBoolean initialized;
-		private final ExecutorService executorService;
+		private final ExecutorService parallelValidationExecutorService;
 
-		CleanableState(AtomicBoolean initialized, ExecutorService executorService) {
+		CleanableState(AtomicBoolean initialized, ExecutorService parallelValidationExecutorService) {
 			this.initialized = initialized;
-			this.executorService = executorService;
+			this.parallelValidationExecutorService = parallelValidationExecutorService;
 		}
 
 		public void run() {
 			if (initialized.get()) {
 				logger.error("ShaclSail was garbage collected without shutdown() having been called first.");
 			}
-			executorService.shutdownNow();
+			parallelValidationExecutorService.shutdownNow();
 		}
 	}
 
 	public ShaclSail(NotifyingSail baseSail) {
 		super(baseSail);
-		executorService = getExecutorService();
-		cleaner.register(this, new CleanableState(initialized, executorService));
+		parallelValidationExecutorService = getParallelValidationExecutorService();
+		cleaner.register(this, new CleanableState(initialized, parallelValidationExecutorService));
 	}
 
 	public ShaclSail() {
 		super();
-		executorService = getExecutorService();
-		cleaner.register(this, new CleanableState(initialized, executorService));
+		parallelValidationExecutorService = getParallelValidationExecutorService();
+		cleaner.register(this, new CleanableState(initialized, parallelValidationExecutorService));
 	}
 
-	private static RevivableExecutorService getExecutorService() {
-		return new RevivableExecutorService(() -> {
-			return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2,
-					r -> {
-						Thread t = Executors.defaultThreadFactory().newThread(r);
-						// this thread pool does not need to stick around if the all other threads are done, because it
-						// is only used for SHACL validation and if all other threads have ended then there would be no
-						// thread to receive the validation results.
-						t.setDaemon(true);
-						return t;
-					});
-		});
-
+	private static RevivableExecutorService getParallelValidationExecutorService() {
+		return new RevivableExecutorService(
+				() -> Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2,
+						r -> {
+							Thread t = Executors.defaultThreadFactory().newThread(r);
+							// this thread pool does not need to stick around if the all other threads are done, because
+							// it
+							// is only used for SHACL validation and if all other threads have ended then there would be
+							// no
+							// thread to receive the validation results.
+							t.setDaemon(true);
+							t.setName("ShaclSail validation thread " + t.getId());
+							return t;
+						}));
 	}
 
 	synchronized void closeConnection(ShaclSailConnection connection) {
@@ -312,7 +315,7 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 
 		super.init();
 
-		executorService.init();
+		parallelValidationExecutorService.init();
 
 		if (shapesRepo != null) {
 			shapesRepo.shutDown();
@@ -342,29 +345,32 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	}
 
 	@InternalUseOnly
-	public List<Shape> getShapes(RepositoryConnection shapesRepoConnection, ShaclSailConnection currentConnection)
+	public List<ContextWithShapes> getShapes(RepositoryConnection shapesRepoConnection, SailConnection sailConnection)
 			throws SailException {
 		SailRepository shapesRepoWithReasoning = new SailRepository(
 				SchemaCachingRDFSInferencer.fastInstantiateFrom(shaclVocabulary, new MemoryStore(), false));
 
-		shapesRepoWithReasoning.init();
-		List<Shape> shapes;
+		try {
+			shapesRepoWithReasoning.init();
 
-		try (SailRepositoryConnection shapesRepoWithReasoningConnection = shapesRepoWithReasoning.getConnection()) {
-			shapesRepoWithReasoningConnection.begin(IsolationLevels.NONE);
+			try (SailRepositoryConnection shapesRepoWithReasoningConnection = shapesRepoWithReasoning.getConnection()) {
+				shapesRepoWithReasoningConnection.begin(IsolationLevels.NONE);
 
-			try (RepositoryResult<Statement> statements = shapesRepoConnection.getStatements(null, null, null, false)) {
-				shapesRepoWithReasoningConnection.add(statements);
+				try (RepositoryResult<Statement> statements = shapesRepoConnection.getStatements(null, null, null,
+						false)) {
+					shapesRepoWithReasoningConnection.add(statements);
+				}
+
+				enrichShapes(shapesRepoWithReasoningConnection);
+				shapesRepoWithReasoningConnection.commit();
+				return Shape.Factory.getShapes(
+						new CombinedShapeSource(shapesRepoWithReasoningConnection, sailConnection),
+						this);
 			}
-
-			enrichShapes(shapesRepoWithReasoningConnection);
-			shapesRepoWithReasoningConnection.commit();
-			shapes = Shape.Factory.getShapes(new ShapeSource(shapesRepoWithReasoningConnection, currentConnection),
-					this);
+		} finally {
+			shapesRepoWithReasoning.shutDown();
 		}
 
-		shapesRepoWithReasoning.shutDown();
-		return shapes;
 	}
 
 	@Override
@@ -387,15 +393,15 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	private boolean shutdownExecutorService(boolean forced) {
 		boolean terminated = false;
 
-		executorService.shutdown();
+		parallelValidationExecutorService.shutdown();
 		try {
-			terminated = executorService.awaitTermination(200, TimeUnit.MILLISECONDS);
+			terminated = parallelValidationExecutorService.awaitTermination(200, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException ignored) {
 			Thread.currentThread().interrupt();
 		}
 
 		if (forced && !terminated) {
-			executorService.shutdownNow();
+			parallelValidationExecutorService.shutdownNow();
 			logger.error("Shutdown ShaclSail while validation is still running.");
 			terminated = true;
 		}
@@ -406,7 +412,7 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 
 	synchronized <T> Future<T> submitRunnableToExecutorService(Callable<T> runnable) {
 
-		return executorService.submit(runnable);
+		return parallelValidationExecutorService.submit(runnable);
 	}
 
 	@Override
@@ -437,7 +443,9 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 			return;
 		}
 
-		shaclSailConnection.add(DASH_CONSTANTS);
+		// TODO: We need to handle DASH_CONSTANTS for the other shape graphs too!
+
+		shaclSailConnection.add(DASH_CONSTANTS, RDF4J.SHACL_SHAPE_GRAPH);
 		implicitTargetClass(shaclSailConnection);
 
 	}
@@ -452,7 +460,8 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 							|| shaclSailConnection.hasStatement(s, RDF.TYPE, SHACL.PROPERTY_SHAPE, true)
 					)
 					.forEach(s -> {
-						shaclSailConnection.add(s, SHACL.TARGET_CLASS, s);
+						// TODO: This only works for the MemoryStore where we store the shape and not for other graphs
+						shaclSailConnection.add(s, SHACL.TARGET_CLASS, s, RDF4J.SHACL_SHAPE_GRAPH);
 					});
 		}
 	}
@@ -519,21 +528,36 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	}
 
 	@InternalUseOnly
-	public List<Shape> getCurrentShapes(ShaclSailConnection currentConnection) {
-		try (SailRepositoryConnection connection = shapesRepo.getConnection()) {
-			return getShapes(connection, currentConnection);
+	public List<ContextWithShapes> getCurrentShapes() {
+		try (SailRepositoryConnection shapesRepoConnection = shapesRepo.getConnection()) {
+			try (NotifyingSailConnection sailConnection = getBaseSail().getConnection()) {
+				shapesRepoConnection.begin();
+				try {
+					sailConnection.begin();
+					try {
+						return getShapes(shapesRepoConnection, sailConnection);
+					} finally {
+						sailConnection.commit();
+					}
+				} finally {
+					shapesRepoConnection.commit();
+				}
+			}
 		}
 	}
 
 	boolean hasShapes() {
-		try (SailRepositoryConnection connection = shapesRepo.getConnection()) {
-			connection.begin(IsolationLevels.NONE);
-			try {
-				return !connection.isEmpty();
-			} finally {
-				connection.commit();
-			}
-		}
+		// TODO: We need to check for shapes in the base sail too, if that is enabled
+//		try (SailRepositoryConnection connection = shapesRepo.getConnection()) {
+//			connection.begin(IsolationLevels.NONE);
+//			try {
+//				return !connection.isEmpty();
+//			} finally {
+//				connection.commit();
+//			}
+//		}
+
+		return true;
 	}
 
 	private static SchemaCachingRDFSInferencer createShaclVocabulary() {

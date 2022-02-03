@@ -15,8 +15,11 @@ import java.util.stream.Stream;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.rdf4j.common.transaction.IsolationLevels;
+import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
+import org.eclipse.rdf4j.model.vocabulary.RDF;
+import org.eclipse.rdf4j.model.vocabulary.RDF4J;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.repository.sail.SailRepository;
@@ -27,7 +30,9 @@ import org.eclipse.rdf4j.sail.shacl.ShaclSail;
 import org.eclipse.rdf4j.sail.shacl.ShaclSailConnection;
 import org.eclipse.rdf4j.sail.shacl.Utils;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclProperties;
-import org.eclipse.rdf4j.sail.shacl.ast.ShapeSource;
+import org.eclipse.rdf4j.sail.shacl.wrapper.shape.RepositoryConnectionShapeSource;
+import org.eclipse.rdf4j.sail.shacl.wrapper.shape.SailConnectionShapeSource;
+import org.eclipse.rdf4j.sail.shacl.wrapper.shape.ShapeSource;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -39,6 +44,7 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Logger;
@@ -133,13 +139,17 @@ public class ComplexBenchmark {
 	}
 
 	@Benchmark
-	public void shaclPropertiesSwitch() {
+	public void shaclPropertiesSwitch(Blackhole blackhole) {
+
+		Resource[] context = { RDF4J.SHACL_SHAPE_GRAPH };
 
 		try (SailRepositoryConnection connection = memoryStore.getConnection()) {
 
 			try (Stream<Statement> stream = connection.getStatements(null, SHACL.PROPERTY, null).stream()) {
 				stream.map(Statement::getObject).forEach(o -> {
-					new ShaclProperties((Resource) o, new ShapeSource(connection, null));
+					ShaclProperties shaclProperties = new ShaclProperties((Resource) o,
+							new RepositoryConnectionShapeSource(connection).withContext(context));
+					blackhole.consume(shaclProperties);
 				});
 			}
 
