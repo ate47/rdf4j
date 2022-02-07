@@ -5,18 +5,9 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
-delete {
-graph ex:g1 {
-        ex:validPerson1 ex:age "123".
-                }
-} insert {
-graph ex:g1 {
-        ex:validPerson1
-                ex:age 234 ;
-                a ex:Person .
-}
-} where {
-graph ex:g1 {
-        ?a ?b ?c.
-        }
+INSERT DATA {
+
+ex:validPerson1 a ex:Person ;
+	ex:age "123".
+
 }

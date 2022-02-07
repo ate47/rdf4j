@@ -13,4 +13,7 @@ ex:namedGraph {
 
   ex:PersonPropertyShape sh:path ex:age;
     sh:datatype xsd:integer .
+
+ ex:g1 sh:shapesGraph ex:namedGraph.
+
 }

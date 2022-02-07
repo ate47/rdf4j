@@ -1000,6 +1000,8 @@ abstract public class AbstractShaclTest {
 			// this helps with one test where the schema is in the shacl file
 			parse.remove(null, RDFS.SUBCLASSOF, null);
 
+			parse.remove(null, SHACL.SHAPES_GRAPH, null);
+
 			// we add inferred NodeShape and PropertyShape, easier to remove when comparing
 			parse.remove(null, RDF.TYPE, SHACL.NODE_SHAPE);
 			parse.remove(null, RDF.TYPE, SHACL.SHAPE);
