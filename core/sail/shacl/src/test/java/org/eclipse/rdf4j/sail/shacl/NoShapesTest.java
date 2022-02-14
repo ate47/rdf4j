@@ -15,12 +15,14 @@ import org.eclipse.rdf4j.model.vocabulary.RDF4J;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.eclipse.rdf4j.sail.SailConnection;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 public class NoShapesTest {
 
 	@Test
+	@Disabled("TODO: Enable this test once we find out how we can quickly and efficiently check if there are any shapes or not.")
 	public void testSkippingValidationWhenThereAreNoShapes() {
 
 		ShaclSail shaclSail = new ShaclSail(new MemoryStore());
