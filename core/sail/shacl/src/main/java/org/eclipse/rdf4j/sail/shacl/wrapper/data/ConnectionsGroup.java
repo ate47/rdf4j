@@ -51,7 +51,7 @@ public class ConnectionsGroup implements Closeable {
 	// used to cache Select plan nodes so that we don't query a store for the same data during the same validation step.
 	private final Map<PlanNode, BufferedSplitter> nodeCache = new HashMap<>();
 
-	ConnectionsGroup(SailConnection baseConnection,
+	public ConnectionsGroup(SailConnection baseConnection,
 			SailConnection previousStateConnection, Sail addedStatements, Sail removedStatements,
 			Stats stats, RdfsSubClassOfReasonerProvider rdfsSubClassOfReasonerProvider,
 			ShaclSailConnection.Settings transactionSettings, boolean sparqlValidation) {
@@ -125,7 +125,7 @@ public class ConnectionsGroup implements Closeable {
 		return sparqlValidation;
 	}
 
-	interface RdfsSubClassOfReasonerProvider {
+	public interface RdfsSubClassOfReasonerProvider {
 		RdfsSubClassOfReasoner getRdfsSubClassOfReasoner();
 	}
 }

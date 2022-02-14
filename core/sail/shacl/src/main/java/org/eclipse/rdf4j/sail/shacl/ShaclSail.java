@@ -279,6 +279,7 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 				SHACL.QUALIFIED_MAX_COUNT,
 				SHACL.QUALIFIED_MIN_COUNT,
 				SHACL.QUALIFIED_VALUE_SHAPE,
+				SHACL.SHAPES_GRAPH,
 				DASH.hasValueIn,
 				RSX.targetShape
 		);

@@ -52,8 +52,7 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class LoadingBenchmark {
 
-//	@Param({ "NONE", "SNAPSHOT", "SERIALIZABLE" })
-	@Param({ "SNAPSHOT" })
+	@Param({ "NONE", "SNAPSHOT", "SERIALIZABLE" })
 	public String isolationLevel;
 
 	private static final List<Statement> statementList = getStatements();

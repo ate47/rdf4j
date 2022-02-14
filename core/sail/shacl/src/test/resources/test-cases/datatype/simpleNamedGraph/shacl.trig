@@ -11,13 +11,10 @@ ex:shapesGraph1 {
     sh:targetClass ex:Person;
     sh:property ex:PersonPropertyShape .
 
-  ex:PersonPropertyShape sh:path ex:age .
+  ex:PersonPropertyShape
+        sh:path ex:age ;
+        sh:datatype xsd:integer .
 
  ex:g1 sh:shapesGraph ex:shapesGraph1.
 
-}
-
-ex:shapesGraph2 {
-  ex:PersonPropertyShape sh:datatype xsd:integer .
-   ex:g1 sh:shapesGraph ex:shapesGraph2.
 }

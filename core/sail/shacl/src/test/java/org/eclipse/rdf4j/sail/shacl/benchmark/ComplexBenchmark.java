@@ -144,6 +144,7 @@ public class ComplexBenchmark {
 		Resource[] context = { RDF4J.SHACL_SHAPE_GRAPH };
 
 		try (SailRepositoryConnection connection = memoryStore.getConnection()) {
+			connection.begin(IsolationLevels.NONE);
 
 			try (Stream<Statement> stream = connection.getStatements(null, SHACL.PROPERTY, null).stream()) {
 				stream.map(Statement::getObject).forEach(o -> {
@@ -152,6 +153,7 @@ public class ComplexBenchmark {
 					blackhole.consume(shaclProperties);
 				});
 			}
+			connection.commit();
 
 		}
 
