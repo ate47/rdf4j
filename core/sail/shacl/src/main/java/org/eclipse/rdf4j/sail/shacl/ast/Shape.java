@@ -32,10 +32,9 @@ import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.rio.WriterConfig;
 import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
-import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
-import org.eclipse.rdf4j.sail.shacl.RdfsSubClassOfReasoner;
 import org.eclipse.rdf4j.sail.shacl.ShaclSail;
 import org.eclipse.rdf4j.sail.shacl.SourceConstraintComponent;
+import org.eclipse.rdf4j.sail.shacl.ValidationSettings;
 import org.eclipse.rdf4j.sail.shacl.ast.constraintcomponents.AndConstraintComponent;
 import org.eclipse.rdf4j.sail.shacl.ast.constraintcomponents.ClassConstraintComponent;
 import org.eclipse.rdf4j.sail.shacl.ast.constraintcomponents.ClosedConstraintComponent;
@@ -76,6 +75,8 @@ import org.eclipse.rdf4j.sail.shacl.ast.targets.TargetClass;
 import org.eclipse.rdf4j.sail.shacl.ast.targets.TargetNode;
 import org.eclipse.rdf4j.sail.shacl.ast.targets.TargetObjectsOf;
 import org.eclipse.rdf4j.sail.shacl.ast.targets.TargetSubjectsOf;
+import org.eclipse.rdf4j.sail.shacl.wrapper.data.ConnectionsGroup;
+import org.eclipse.rdf4j.sail.shacl.wrapper.data.RdfsSubClassOfReasoner;
 import org.eclipse.rdf4j.sail.shacl.wrapper.shape.ShapeSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -356,12 +357,11 @@ abstract public class Shape implements ConstraintComponent, Identifiable, Export
 		constraintComponents.forEach(c -> c.setTargetChain(targetChain));
 	}
 
-	public PlanNode generatePlans(ConnectionsGroup connectionsGroup, boolean logValidationPlans,
-			boolean validateEntireBaseSail) {
+	public PlanNode generatePlans(ConnectionsGroup connectionsGroup, ValidationSettings validationSettings) {
 		assert constraintComponents.size() == 1;
 
 		ValidationApproach validationApproach = ValidationApproach.SPARQL;
-		if (!validateEntireBaseSail) {
+		if (!validationSettings.isValidateEntireBaseSail()) {
 			validationApproach = constraintComponents.stream()
 					.map(constraintComponent -> constraintComponent.getPreferredValidationApproach(connectionsGroup))
 					.reduce(ValidationApproach::reducePreferred)
@@ -372,18 +372,20 @@ abstract public class Shape implements ConstraintComponent, Identifiable, Export
 			if (connectionsGroup.isSparqlValidation()
 					&& Shape.this.getOptimalBulkValidationApproach() == ValidationApproach.SPARQL) {
 				logger.debug("Use validation approach {} for shape {}", validationApproach, this);
-				return Shape.this.generateSparqlValidationQuery(connectionsGroup, logValidationPlans, false, false,
-						Scope.none).getValidationPlan(connectionsGroup.getBaseConnection());
+				return Shape.this.generateSparqlValidationQuery(connectionsGroup, validationSettings, false, false,
+						Scope.none)
+						.getValidationPlan(connectionsGroup.getBaseConnection(), validationSettings.getDataGraph());
 			} else {
 				logger.debug("Use fall back validation approach for bulk validation instead of SPARQL for shape {}",
 						this);
 
-				return Shape.this.generateTransactionalValidationPlan(connectionsGroup, logValidationPlans,
+				return Shape.this.generateTransactionalValidationPlan(connectionsGroup, validationSettings,
 						() -> Shape.this.getTargetChain()
 								.getEffectiveTarget("_target",
 										this instanceof NodeShape ? Scope.nodeShape : Scope.propertyShape,
 										connectionsGroup.getRdfsSubClassOfReasoner())
 								.getAllTargets(connectionsGroup,
+										validationSettings.getDataGraph(),
 										this instanceof NodeShape ? Scope.nodeShape : Scope.propertyShape),
 						Scope.none);
 			}
@@ -391,8 +393,8 @@ abstract public class Shape implements ConstraintComponent, Identifiable, Export
 		} else if (validationApproach == ValidationApproach.Transactional) {
 			logger.debug("Use validation approach {} for shape {}", validationApproach, this);
 
-			if (this.requiresEvaluation(connectionsGroup, Scope.none)) {
-				return Shape.this.generateTransactionalValidationPlan(connectionsGroup, logValidationPlans, null,
+			if (this.requiresEvaluation(connectionsGroup, Scope.none, validationSettings.getDataGraph())) {
+				return Shape.this.generateTransactionalValidationPlan(connectionsGroup, validationSettings, null,
 						Scope.none);
 			} else {
 				return EmptyNode.getInstance();
@@ -418,8 +420,8 @@ abstract public class Shape implements ConstraintComponent, Identifiable, Export
 	}
 
 	@Override
-	public boolean requiresEvaluation(ConnectionsGroup connectionsGroup, Scope scope) {
-		return constraintComponents.stream().anyMatch(c -> c.requiresEvaluation(connectionsGroup, scope));
+	public boolean requiresEvaluation(ConnectionsGroup connectionsGroup, Scope scope, Resource[] dataGraph) {
+		return constraintComponents.stream().anyMatch(c -> c.requiresEvaluation(connectionsGroup, scope, dataGraph));
 	}
 
 	/**
@@ -451,7 +453,8 @@ abstract public class Shape implements ConstraintComponent, Identifiable, Export
 					.map(contextWithShapes -> {
 						List<Shape> split = split(contextWithShapes.getShapes());
 						calculateTargetChain(split);
-						return new ContextWithShapes(contextWithShapes.getContexts(), split);
+						return new ContextWithShapes(contextWithShapes.getDataGraph(),
+								contextWithShapes.getShapeGraph(), split);
 
 					})
 					.collect(Collectors.toList());
@@ -505,12 +508,13 @@ abstract public class Shape implements ConstraintComponent, Identifiable, Export
 
 		private static List<ContextWithShapes> parse(ShapeSource shapeSource, ShaclSail shaclSail) {
 
-			try (Stream<Resource> allShapeContexts = shapeSource.getAllShapeContexts()) {
-				return allShapeContexts.map(shapeContext -> {
-					Cache cache = new Cache();
-					Resource[] contexts = { shapeContext };
-					return getShapesInContext(shapeSource, shaclSail, cache, contexts);
-				})
+			try (Stream<ShapeSource.ShapesGraph> allShapeContexts = shapeSource.getAllShapeContexts()) {
+				return allShapeContexts
+						.map(shapesGraph -> {
+							Cache cache = new Cache();
+							return getShapesInContext(shapeSource, shaclSail, cache, shapesGraph.getDataGraph(),
+									shapesGraph.getShapesGraph());
+						})
 						.collect(Collectors.toList());
 
 			}
@@ -518,8 +522,8 @@ abstract public class Shape implements ConstraintComponent, Identifiable, Export
 		}
 
 		private static ContextWithShapes getShapesInContext(ShapeSource shapeSource, ShaclSail shaclSail, Cache cache,
-				Resource[] contexts) {
-			ShapeSource shapeSourceWithContext = shapeSource.withContext(contexts);
+				Resource[] dataGraph, Resource[] shapesGraph) {
+			ShapeSource shapeSourceWithContext = shapeSource.withContext(shapesGraph);
 
 			try (Stream<Resource> resources = shapeSourceWithContext.getTargetableShape()) {
 				List<Shape> shapes = resources
@@ -534,7 +538,7 @@ abstract public class Shape implements ConstraintComponent, Identifiable, Export
 						})
 						.collect(Collectors.toList());
 
-				return new ContextWithShapes(contexts, shapes);
+				return new ContextWithShapes(dataGraph, shapesGraph, shapes);
 			}
 		}
 

@@ -20,20 +20,26 @@ import org.eclipse.rdf4j.model.impl.DynamicModelFactory;
 
 public class ContextWithShapes {
 
-	private final Resource[] contexts;
+	private final Resource[] dataGraph;
+	private final Resource[] shapeGraph;
 	private final List<Shape> shapes;
 
-	public ContextWithShapes(Resource[] contexts, List<Shape> shapes) {
-		this.contexts = contexts;
+	public ContextWithShapes(Resource[] dataGraph, Resource[] shapeGraph, List<Shape> shapes) {
+		this.shapeGraph = shapeGraph;
+		this.dataGraph = dataGraph;
 		this.shapes = shapes;
 	}
 
-	public Resource[] getContexts() {
-		return contexts;
+	public Resource[] getShapeGraph() {
+		return shapeGraph;
 	}
 
 	public List<Shape> getShapes() {
 		return shapes;
+	}
+
+	public Resource[] getDataGraph() {
+		return dataGraph;
 	}
 
 	@Override
@@ -45,13 +51,15 @@ public class ContextWithShapes {
 			return false;
 		}
 		ContextWithShapes that = (ContextWithShapes) o;
-		return Arrays.equals(contexts, that.contexts) && shapes.equals(that.shapes);
+		return Arrays.equals(dataGraph, that.dataGraph) && Arrays.equals(shapeGraph, that.shapeGraph)
+				&& shapes.equals(that.shapes);
 	}
 
 	@Override
 	public int hashCode() {
 		int result = Objects.hash(shapes);
-		result = 31 * result + Arrays.hashCode(contexts);
+		result = 31 * result + Arrays.hashCode(dataGraph);
+		result = 31 * result + Arrays.hashCode(shapeGraph);
 		return result;
 	}
 
@@ -61,7 +69,7 @@ public class ContextWithShapes {
 			shape.toModel(emptyModel);
 		}
 		for (Statement statement : emptyModel) {
-			for (Resource context : contexts) {
+			for (Resource context : shapeGraph) {
 				model.add(statement.getSubject(), statement.getPredicate(), statement.getObject(), context);
 			}
 		}

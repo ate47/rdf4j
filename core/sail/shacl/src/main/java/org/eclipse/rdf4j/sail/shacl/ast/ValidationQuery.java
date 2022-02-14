@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.sail.SailConnection;
 import org.eclipse.rdf4j.sail.shacl.SourceConstraintComponent;
 import org.eclipse.rdf4j.sail.shacl.ast.constraintcomponents.ConstraintComponent;
@@ -114,7 +115,7 @@ public class ValidationQuery {
 		this.query = query;
 	}
 
-	public PlanNode getValidationPlan(SailConnection baseConnection) {
+	public PlanNode getValidationPlan(SailConnection baseConnection, Resource[] dataGraph) {
 
 		assert query != null;
 
@@ -146,7 +147,7 @@ public class ValidationQuery {
 						scope_validationReport, true);
 			}
 
-		});
+		}, dataGraph);
 
 		return new ValidationReportNode(select, t -> {
 			return new ValidationResult(t.getActiveTarget(), t.getValue(), shape,
@@ -230,7 +231,7 @@ public class ValidationQuery {
 		}
 
 		@Override
-		public PlanNode getValidationPlan(SailConnection baseConnection) {
+		public PlanNode getValidationPlan(SailConnection baseConnection, Resource[] dataGraph) {
 			return EmptyNode.getInstance();
 		}
 

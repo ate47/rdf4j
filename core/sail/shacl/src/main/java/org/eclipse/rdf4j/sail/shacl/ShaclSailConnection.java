@@ -48,6 +48,8 @@ import org.eclipse.rdf4j.sail.shacl.ast.planNodes.ValidationTuple;
 import org.eclipse.rdf4j.sail.shacl.results.ValidationReport;
 import org.eclipse.rdf4j.sail.shacl.results.lazy.LazyValidationReport;
 import org.eclipse.rdf4j.sail.shacl.results.lazy.ValidationResultIterator;
+import org.eclipse.rdf4j.sail.shacl.wrapper.data.ConnectionsGroup;
+import org.eclipse.rdf4j.sail.shacl.wrapper.data.RdfsSubClassOfReasoner;
 import org.eclipse.rdf4j.sail.shacl.wrapper.data.VerySimpleRdfsBackwardsChainingConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -431,11 +433,14 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 		try {
 			Stream<Callable<ValidationResultIterator>> callableStream = shapes
 					.stream()
-					.flatMap(s -> s.getShapes().stream()) // TODO: This needs to be changed when we want to support
-															// sh:shapeGraph
-					.map(shape -> new ShapePlanNodeTuple(shape,
-							shape.generatePlans(connectionsGroup, sail.isLogValidationPlans(),
-									validateEntireBaseSail)))
+					.flatMap(contextWithShapes -> contextWithShapes.getShapes()
+							.stream()
+							.map(shape -> new ShapePlanNodeTuple(shape,
+									shape.generatePlans(connectionsGroup,
+											new ValidationSettings(contextWithShapes.getDataGraph(),
+													sail.isLogValidationPlans(), validateEntireBaseSail))))
+
+					)
 					.filter(ShapePlanNodeTuple::hasPlanNode)
 					.map(shapePlanNodeTuple -> new ShapePlanNodeTuple(shapePlanNodeTuple.getShape(),
 							new SingleCloseablePlanNode(shapePlanNodeTuple.getPlanNode())))

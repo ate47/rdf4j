@@ -23,6 +23,7 @@ import org.eclipse.rdf4j.rio.UnsupportedRDFormatException;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.EmptyNode;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNode;
+import org.eclipse.rdf4j.sail.shacl.wrapper.data.ConnectionsGroup;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -47,7 +48,7 @@ public class ReduceNumberOfPlansTest {
 				List<PlanNode> collect = shaclSail.getCurrentShapes()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
-						.map(shape -> shape.generatePlans(connectionsGroup, false, false))
+						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
 						.filter(s -> !(s instanceof EmptyNode))
 						.collect(Collectors.toList());
 
@@ -61,7 +62,7 @@ public class ReduceNumberOfPlansTest {
 				List<PlanNode> collect2 = shaclSail.getCurrentShapes()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
-						.map(shape -> shape.generatePlans(connectionsGroup, false, false))
+						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
 						.filter(s -> !(s instanceof EmptyNode))
 						.collect(Collectors.toList());
 				assertEquals(2, collect2.size());
@@ -111,7 +112,7 @@ public class ReduceNumberOfPlansTest {
 				List<PlanNode> collect1 = shaclSail.getCurrentShapes()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
-						.map(shape -> shape.generatePlans(connectionsGroup, false, false))
+						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
 						.filter(s -> !(s instanceof EmptyNode))
 						.collect(Collectors.toList());
 				assertEquals(1, collect1.size());
@@ -126,7 +127,7 @@ public class ReduceNumberOfPlansTest {
 				List<PlanNode> collect2 = shaclSail.getCurrentShapes()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
-						.map(shape -> shape.generatePlans(connectionsGroup, false, false))
+						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
 						.filter(s -> !(s instanceof EmptyNode))
 
 						.collect(Collectors.toList());
@@ -139,7 +140,7 @@ public class ReduceNumberOfPlansTest {
 				List<PlanNode> collect3 = shaclSail.getCurrentShapes()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
-						.map(shape -> shape.generatePlans(connectionsGroup, false, false))
+						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
 						.filter(s -> !(s instanceof EmptyNode))
 
 						.collect(Collectors.toList());

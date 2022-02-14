@@ -8,20 +8,23 @@
 
 package org.eclipse.rdf4j.sail.shacl.wrapper.shape;
 
+import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
+import org.eclipse.rdf4j.model.vocabulary.RDF4J;
 import org.eclipse.rdf4j.model.vocabulary.RSX;
 import org.eclipse.rdf4j.model.vocabulary.SHACL;
 
-public interface ShapeSource {
+public interface ShapeSource extends AutoCloseable {
 
 	ShapeSource withContext(Resource[] context);
 
-	Stream<Resource> getAllShapeContexts();
+	Stream<ShapesGraph> getAllShapeContexts();
 
 	Stream<Resource> getTargetableShape();
 
@@ -36,6 +39,44 @@ public interface ShapeSource {
 	Value getRdfFirst(Resource subject);
 
 	Resource getRdfRest(Resource subject);
+
+	@Override
+	void close();
+
+	class ShapesGraph {
+		private final Resource[] dataGraph;
+		private final Resource[] shapesGraph;
+
+		public ShapesGraph(Resource dataGraph, IRI shapesGraph) {
+			this.dataGraph = new Resource[] { handleDefaultGraph(dataGraph) };
+			this.shapesGraph = new Resource[] { handleDefaultGraph(shapesGraph) };
+		}
+
+		public ShapesGraph(Resource dataGraph, List<? extends Statement> shapesGraph) {
+			this.dataGraph = new Resource[] { handleDefaultGraph(dataGraph) };
+			this.shapesGraph = shapesGraph
+					.stream()
+					.map(Statement::getObject)
+					.map(o -> ((Resource) o))
+					.map(ShapesGraph::handleDefaultGraph)
+					.toArray(Resource[]::new);
+		}
+
+		private static Resource handleDefaultGraph(Resource graph) {
+			if (RDF4J.NIL.equals(graph)) {
+				return null;
+			}
+			return graph;
+		}
+
+		public Resource[] getDataGraph() {
+			return dataGraph;
+		}
+
+		public Resource[] getShapesGraph() {
+			return shapesGraph;
+		}
+	}
 
 	enum Predicates {
 

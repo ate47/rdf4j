@@ -6,14 +6,18 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix rdf4j: <http://rdf4j.org/schema/rdf4j#> .
 
-ex:namedGraph {
+ex:shapesGraph1 {
   ex:PersonShape a sh:NodeShape;
     sh:targetClass ex:Person;
     sh:property ex:PersonPropertyShape .
 
-  ex:PersonPropertyShape sh:path ex:age;
-    sh:datatype xsd:integer .
+  ex:PersonPropertyShape sh:path ex:age .
 
- ex:g1 sh:shapesGraph ex:namedGraph.
+ ex:g1 sh:shapesGraph ex:shapesGraph1.
 
+}
+
+ex:shapesGraph2 {
+  ex:PersonPropertyShape sh:datatype xsd:integer .
+   ex:g1 sh:shapesGraph ex:shapesGraph2.
 }

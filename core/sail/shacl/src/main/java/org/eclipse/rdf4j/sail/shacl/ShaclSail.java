@@ -8,12 +8,7 @@
 
 package org.eclipse.rdf4j.sail.shacl;
 
-import static org.eclipse.rdf4j.model.util.Values.iri;
-
-import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.ref.Cleaner;
 import java.util.Arrays;
 import java.util.Collection;
@@ -27,7 +22,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 import org.eclipse.rdf4j.common.annotation.Experimental;
 import org.eclipse.rdf4j.common.annotation.InternalUseOnly;
@@ -36,34 +30,24 @@ import org.eclipse.rdf4j.common.concurrent.locks.ReadPrefReadWriteLockManager;
 import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.common.transaction.TransactionSetting;
 import org.eclipse.rdf4j.model.IRI;
-import org.eclipse.rdf4j.model.Model;
-import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.vocabulary.DASH;
-import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDF4J;
-import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.eclipse.rdf4j.model.vocabulary.RSX;
 import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
-import org.eclipse.rdf4j.repository.RepositoryResult;
 import org.eclipse.rdf4j.repository.sail.SailRepository;
 import org.eclipse.rdf4j.repository.sail.SailRepositoryConnection;
-import org.eclipse.rdf4j.rio.RDFFormat;
-import org.eclipse.rdf4j.rio.Rio;
 import org.eclipse.rdf4j.sail.NotifyingSail;
 import org.eclipse.rdf4j.sail.NotifyingSailConnection;
 import org.eclipse.rdf4j.sail.Sail;
 import org.eclipse.rdf4j.sail.SailConflictException;
 import org.eclipse.rdf4j.sail.SailConnection;
 import org.eclipse.rdf4j.sail.SailException;
-import org.eclipse.rdf4j.sail.inferencer.fc.SchemaCachingRDFSInferencer;
-import org.eclipse.rdf4j.sail.inferencer.fc.SchemaCachingRDFSInferencerConnection;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
 import org.eclipse.rdf4j.sail.shacl.ast.ContextWithShapes;
 import org.eclipse.rdf4j.sail.shacl.ast.Shape;
 import org.eclipse.rdf4j.sail.shacl.wrapper.shape.CombinedShapeSource;
-import org.eclipse.rdf4j.sail.shacl.wrapper.shape.ShapeSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -174,12 +158,6 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 
 	private static final Logger logger = LoggerFactory.getLogger(ShaclSail.class);
 	private static final Cleaner cleaner = Cleaner.create();
-
-	private static final Model DASH_CONSTANTS = resourceAsModel("shacl-sparql-inference/dashConstants.ttl");
-
-	// SHACL Vocabulary from W3C - https://www.w3.org/ns/shacl.ttl
-	private final static IRI shaclVocabularyGraph = iri(RDF4J.NAMESPACE, "shaclVocabularyGraph");
-	private final static SchemaCachingRDFSInferencer shaclVocabulary = createShaclVocabulary();
 
 	/**
 	 * an initialized {@link Repository} for storing/retrieving Shapes data
@@ -347,28 +325,11 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	@InternalUseOnly
 	public List<ContextWithShapes> getShapes(RepositoryConnection shapesRepoConnection, SailConnection sailConnection)
 			throws SailException {
-		SailRepository shapesRepoWithReasoning = new SailRepository(
-				SchemaCachingRDFSInferencer.fastInstantiateFrom(shaclVocabulary, new MemoryStore(), false));
 
-		try {
-			shapesRepoWithReasoning.init();
-
-			try (SailRepositoryConnection shapesRepoWithReasoningConnection = shapesRepoWithReasoning.getConnection()) {
-				shapesRepoWithReasoningConnection.begin(IsolationLevels.NONE);
-
-				try (RepositoryResult<Statement> statements = shapesRepoConnection.getStatements(null, null, null,
-						false)) {
-					shapesRepoWithReasoningConnection.add(statements);
-				}
-
-				enrichShapes(shapesRepoWithReasoningConnection);
-				shapesRepoWithReasoningConnection.commit();
-				return Shape.Factory.getShapes(
-						new CombinedShapeSource(shapesRepoWithReasoningConnection, sailConnection),
-						this);
-			}
-		} finally {
-			shapesRepoWithReasoning.shutDown();
+		try (CombinedShapeSource combinedShapeSource = new CombinedShapeSource(shapesRepoConnection, sailConnection)) {
+			return Shape.Factory.getShapes(
+					combinedShapeSource,
+					this);
 		}
 
 	}
@@ -434,36 +395,6 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 		}
 
 		return shaclSailConnection;
-	}
-
-	private void enrichShapes(SailRepositoryConnection shaclSailConnection) {
-
-		// performance optimisation, running the queries below is time-consuming, even if the repo is empty
-		if (shaclSailConnection.isEmpty()) {
-			return;
-		}
-
-		// TODO: We need to handle DASH_CONSTANTS for the other shape graphs too!
-
-		shaclSailConnection.add(DASH_CONSTANTS, RDF4J.SHACL_SHAPE_GRAPH);
-		implicitTargetClass(shaclSailConnection);
-
-	}
-
-	private void implicitTargetClass(SailRepositoryConnection shaclSailConnection) {
-		try (Stream<Statement> stream = shaclSailConnection.getStatements(null, RDF.TYPE, RDFS.CLASS, false).stream()) {
-			stream
-					.map(Statement::getSubject)
-					.filter(s ->
-
-					shaclSailConnection.hasStatement(s, RDF.TYPE, SHACL.NODE_SHAPE, true)
-							|| shaclSailConnection.hasStatement(s, RDF.TYPE, SHACL.PROPERTY_SHAPE, true)
-					)
-					.forEach(s -> {
-						// TODO: This only works for the MemoryStore where we store the shape and not for other graphs
-						shaclSailConnection.add(s, SHACL.TARGET_CLASS, s, RDF4J.SHACL_SHAPE_GRAPH);
-					});
-		}
 	}
 
 	/**
@@ -558,40 +489,6 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 //		}
 
 		return true;
-	}
-
-	private static SchemaCachingRDFSInferencer createShaclVocabulary() {
-		try (InputStream in = getResourceAsStream("shacl-sparql-inference/shaclVocabulary.ttl")) {
-			SchemaCachingRDFSInferencer schemaCachingRDFSInferencer = new SchemaCachingRDFSInferencer(
-					new MemoryStore());
-			try (SchemaCachingRDFSInferencerConnection connection = schemaCachingRDFSInferencer.getConnection()) {
-				connection.begin(IsolationLevels.NONE);
-				Model model = Rio.parse(in, "", RDFFormat.TURTLE);
-				model.forEach(s -> connection.addStatement(s.getSubject(), s.getPredicate(), s.getObject(),
-						shaclVocabularyGraph));
-				connection.commit();
-			}
-			return schemaCachingRDFSInferencer;
-		} catch (IOException e) {
-			throw new IllegalStateException("Resource could not be read: shacl-sparql-inference/shaclVocabulary.ttl",
-					e);
-		}
-	}
-
-	private static Model resourceAsModel(String filename) {
-		try (InputStream resourceAsStream = getResourceAsStream(filename)) {
-			return Rio.parse(resourceAsStream, "", RDFFormat.TURTLE);
-		} catch (IOException e) {
-			throw new IllegalStateException("Resource could not be read: " + filename, e);
-		}
-	}
-
-	private static InputStream getResourceAsStream(String filename) {
-		InputStream resourceAsStream = ShaclSail.class.getClassLoader().getResourceAsStream(filename);
-		if (resourceAsStream == null) {
-			throw new IllegalStateException("Resource could not be found: " + filename);
-		}
-		return new BufferedInputStream(resourceAsStream);
 	}
 
 	public static class TransactionSettings {

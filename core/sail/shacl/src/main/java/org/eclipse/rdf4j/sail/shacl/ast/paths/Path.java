@@ -14,13 +14,13 @@ import java.util.stream.Collectors;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
-import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.ast.Exportable;
 import org.eclipse.rdf4j.sail.shacl.ast.Identifiable;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclUnsupportedException;
 import org.eclipse.rdf4j.sail.shacl.ast.Targetable;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNode;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.PlanNodeWrapper;
+import org.eclipse.rdf4j.sail.shacl.wrapper.data.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.wrapper.shape.ShapeSource;
 
 public abstract class Path implements Identifiable, Exportable, Targetable {
@@ -76,7 +76,7 @@ public abstract class Path implements Identifiable, Exportable, Targetable {
 	}
 
 	public abstract PlanNode getAdded(ConnectionsGroup connectionsGroup,
-			PlanNodeWrapper planNodeWrapper);
+			Resource[] dataGraph, PlanNodeWrapper planNodeWrapper);
 
 	/**
 	 *

@@ -19,9 +19,8 @@ import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.DASH;
-import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
-import org.eclipse.rdf4j.sail.shacl.RdfsSubClassOfReasoner;
 import org.eclipse.rdf4j.sail.shacl.SourceConstraintComponent;
+import org.eclipse.rdf4j.sail.shacl.ValidationSettings;
 import org.eclipse.rdf4j.sail.shacl.ast.ShaclAstLists;
 import org.eclipse.rdf4j.sail.shacl.ast.SparqlFragment;
 import org.eclipse.rdf4j.sail.shacl.ast.StatementMatcher;
@@ -39,6 +38,8 @@ import org.eclipse.rdf4j.sail.shacl.ast.planNodes.Unique;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.ValidationTuple;
 import org.eclipse.rdf4j.sail.shacl.ast.planNodes.ValueInFilter;
 import org.eclipse.rdf4j.sail.shacl.ast.targets.EffectiveTarget;
+import org.eclipse.rdf4j.sail.shacl.wrapper.data.ConnectionsGroup;
+import org.eclipse.rdf4j.sail.shacl.wrapper.data.RdfsSubClassOfReasoner;
 import org.eclipse.rdf4j.sail.shacl.wrapper.shape.ShapeSource;
 
 public class DashHasValueInConstraintComponent extends AbstractConstraintComponent {
@@ -76,7 +77,8 @@ public class DashHasValueInConstraintComponent extends AbstractConstraintCompone
 	}
 
 	@Override
-	public PlanNode generateTransactionalValidationPlan(ConnectionsGroup connectionsGroup, boolean logValidationPlans,
+	public PlanNode generateTransactionalValidationPlan(ConnectionsGroup connectionsGroup,
+			ValidationSettings validationSettings,
 			PlanNodeProvider overrideTargetNode, Scope scope) {
 		StatementMatcher.StableRandomVariableProvider stableRandomVariableProvider = new StatementMatcher.StableRandomVariableProvider();
 
@@ -91,15 +93,18 @@ public class DashHasValueInConstraintComponent extends AbstractConstraintCompone
 			if (overrideTargetNode != null) {
 				addedTargets = overrideTargetNode.getPlanNode();
 
-				addedTargets = target.extend(addedTargets, connectionsGroup, scope, EffectiveTarget.Extend.right,
+				addedTargets = target.extend(addedTargets, connectionsGroup, validationSettings.getDataGraph(), scope,
+						EffectiveTarget.Extend.right,
 						false, null);
 			} else {
-				addedTargets = target.getPlanNode(connectionsGroup, scope, true, null);
-				PlanNode addedByPath = path.getAdded(connectionsGroup, null);
+				addedTargets = target.getPlanNode(connectionsGroup, validationSettings.getDataGraph(), scope, true,
+						null);
+				PlanNode addedByPath = path.getAdded(connectionsGroup, validationSettings.getDataGraph(), null);
 
 				addedByPath = target.getTargetFilter(connectionsGroup,
-						Unique.getInstance(new TrimToTarget(addedByPath), false));
-				addedByPath = target.extend(addedByPath, connectionsGroup, scope, EffectiveTarget.Extend.left, false,
+						validationSettings.getDataGraph(), Unique.getInstance(new TrimToTarget(addedByPath), false));
+				addedByPath = target.extend(addedByPath, connectionsGroup, validationSettings.getDataGraph(), scope,
+						EffectiveTarget.Extend.left, false,
 						null);
 
 				addedTargets = UnionNode.getInstance(addedByPath, addedTargets);
@@ -109,6 +114,7 @@ public class DashHasValueInConstraintComponent extends AbstractConstraintCompone
 			PlanNode joined = new BulkedExternalLeftOuterJoin(
 					addedTargets,
 					connectionsGroup.getBaseConnection(),
+					validationSettings.getDataGraph(),
 					path.getTargetQueryFragment(new StatementMatcher.Variable("a"), new StatementMatcher.Variable("c"),
 							connectionsGroup.getRdfsSubClassOfReasoner(), stableRandomVariableProvider),
 					false,
@@ -128,10 +134,12 @@ public class DashHasValueInConstraintComponent extends AbstractConstraintCompone
 
 			if (overrideTargetNode != null) {
 				addedTargets = overrideTargetNode.getPlanNode();
-				addedTargets = target.extend(addedTargets, connectionsGroup, scope, EffectiveTarget.Extend.right,
+				addedTargets = target.extend(addedTargets, connectionsGroup, validationSettings.getDataGraph(), scope,
+						EffectiveTarget.Extend.right,
 						false, null);
 			} else {
-				addedTargets = target.getPlanNode(connectionsGroup, scope, false, null);
+				addedTargets = target.getPlanNode(connectionsGroup, validationSettings.getDataGraph(), scope, false,
+						null);
 			}
 
 			PlanNode falseNode = new ValueInFilter(addedTargets, hasValueIn)
@@ -146,11 +154,11 @@ public class DashHasValueInConstraintComponent extends AbstractConstraintCompone
 	}
 
 	@Override
-	public PlanNode getAllTargetsPlan(ConnectionsGroup connectionsGroup, Scope scope) {
+	public PlanNode getAllTargetsPlan(ConnectionsGroup connectionsGroup, Resource[] dataGraph, Scope scope) {
 		if (scope == Scope.propertyShape) {
 			PlanNode allTargetsPlan = getTargetChain()
 					.getEffectiveTarget("target_", Scope.nodeShape, connectionsGroup.getRdfsSubClassOfReasoner())
-					.getPlanNode(connectionsGroup, Scope.nodeShape, true, null);
+					.getPlanNode(connectionsGroup, dataGraph, Scope.nodeShape, true, null);
 
 			return Unique.getInstance(new ShiftToPropertyShape(allTargetsPlan), true);
 		}

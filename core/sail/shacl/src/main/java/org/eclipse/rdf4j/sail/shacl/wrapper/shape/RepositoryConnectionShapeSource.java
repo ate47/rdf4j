@@ -8,6 +8,7 @@
 
 package org.eclipse.rdf4j.sail.shacl.wrapper.shape;
 
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.eclipse.rdf4j.model.IRI;
@@ -15,6 +16,7 @@ import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
+import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 
 public class RepositoryConnectionShapeSource implements ShapeSource {
@@ -26,24 +28,29 @@ public class RepositoryConnectionShapeSource implements ShapeSource {
 		this(connection, null);
 	}
 
-	private RepositoryConnectionShapeSource(RepositoryConnection sailConnection, Resource[] context) {
-		this.connection = sailConnection;
+	private RepositoryConnectionShapeSource(RepositoryConnection connection, Resource[] context) {
+		this.connection = connection;
 		this.context = context;
+		assert connection.isActive();
+
 	}
 
 	public RepositoryConnectionShapeSource withContext(Resource[] context) {
 		return new RepositoryConnectionShapeSource(connection, context);
 	}
 
-	public Stream<Resource> getAllShapeContexts() {
+	public Stream<ShapesGraph> getAllShapeContexts() {
 		assert context == null;
-		return Stream
-				.of(getContext(Predicates.TARGET_NODE), getContext(Predicates.TARGET_CLASS),
-						getContext(Predicates.TARGET_SUBJECTS_OF), getContext(Predicates.TARGET_OBJECTS_OF),
-						getContext(Predicates.TARGET_PROP), getContext(Predicates.RSX_targetShape))
-				.reduce(Stream::concat)
-				.get()
-				.distinct();
+		try (Stream<? extends Statement> stream = connection.getStatements(null, SHACL.SHAPES_GRAPH, null, false)
+				.stream()) {
+
+			return stream
+					.collect(Collectors.groupingBy(Statement::getSubject))
+					.entrySet()
+					.stream()
+					.map(entry -> new ShapeSource.ShapesGraph(entry.getKey(), entry.getValue()));
+		}
+
 	}
 
 	private Stream<Resource> getContext(Predicates predicate) {
@@ -119,4 +126,8 @@ public class RepositoryConnectionShapeSource implements ShapeSource {
 		return ((Resource) value);
 	}
 
+	@Override
+	public void close() {
+		// we don't close the provided connection
+	}
 }

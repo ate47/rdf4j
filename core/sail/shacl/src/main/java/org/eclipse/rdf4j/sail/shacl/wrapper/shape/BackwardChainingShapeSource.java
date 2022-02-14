@@ -8,6 +8,9 @@
 
 package org.eclipse.rdf4j.sail.shacl.wrapper.shape;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.eclipse.rdf4j.model.IRI;
@@ -15,41 +18,53 @@ import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
+import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.sail.SailConnection;
 
 public class BackwardChainingShapeSource implements ShapeSource {
 
-	private final SailConnection sailConnection;
+	private final SailConnection connection;
 	private final Resource[] context;
 
-	public BackwardChainingShapeSource(SailConnection sailConnection) {
-		this(sailConnection, null);
+	public BackwardChainingShapeSource(SailConnection connection) {
+		this(connection, null);
 	}
 
-	private BackwardChainingShapeSource(SailConnection sailConnection, Resource[] context) {
-		this.sailConnection = sailConnection;
+	private BackwardChainingShapeSource(SailConnection connection, Resource[] context) {
+		this.connection = connection;
 		this.context = context;
+		assert connection.isActive();
 	}
 
 	public BackwardChainingShapeSource withContext(Resource[] context) {
-		return new BackwardChainingShapeSource(sailConnection, context);
+		return new BackwardChainingShapeSource(connection, context);
 	}
 
-	public Stream<Resource> getAllShapeContexts() {
+	public Stream<ShapesGraph> getAllShapeContexts() {
 		assert context == null;
-		return Stream
-				.of(getContext(Predicates.TARGET_NODE), getContext(Predicates.TARGET_CLASS),
-						getContext(Predicates.TARGET_SUBJECTS_OF), getContext(Predicates.TARGET_OBJECTS_OF),
-						getContext(Predicates.TARGET_PROP), getContext(Predicates.RSX_targetShape))
-				.reduce(Stream::concat)
-				.get()
-				.distinct();
+		try (Stream<? extends Statement> stream = connection.getStatements(null, SHACL.SHAPES_GRAPH, null, false)
+				.stream()) {
+
+			return stream
+					.collect(Collectors.groupingBy(Statement::getSubject))
+					.entrySet()
+					.stream()
+					.map(entry -> new ShapeSource.ShapesGraph(entry.getKey(), entry.getValue()));
+		}
+
+//		return Stream
+//			.of(getContext(Predicates.TARGET_NODE), getContext(Predicates.TARGET_CLASS),
+//				getContext(Predicates.TARGET_SUBJECTS_OF), getContext(Predicates.TARGET_OBJECTS_OF),
+//				getContext(Predicates.TARGET_PROP), getContext(Predicates.RSX_targetShape))
+//			.reduce(Stream::concat)
+//			.get()
+//			.distinct();
 	}
 
 	private Stream<Resource> getContext(Predicates predicate) {
 		assert context == null;
 
-		return sailConnection.getStatements(null, predicate.getIRI(), null, true)
+		return connection.getStatements(null, predicate.getIRI(), null, true)
 				.stream()
 				.map(Statement::getContext)
 				.distinct();
@@ -68,13 +83,13 @@ public class BackwardChainingShapeSource implements ShapeSource {
 
 	public boolean isType(Resource subject, IRI type) {
 		assert context != null;
-		return sailConnection.hasStatement(subject, RDF.TYPE, type, true, context);
+		return connection.hasStatement(subject, RDF.TYPE, type, true, context);
 	}
 
 	public Stream<Resource> getSubjects(Predicates predicate) {
 		assert context != null;
 
-		return sailConnection.getStatements(null, predicate.getIRI(), null, true, context)
+		return connection.getStatements(null, predicate.getIRI(), null, true, context)
 				.stream()
 				.map(Statement::getSubject)
 				.distinct();
@@ -84,7 +99,7 @@ public class BackwardChainingShapeSource implements ShapeSource {
 	public Stream<Value> getObjects(Resource subject, Predicates predicate) {
 		assert context != null;
 
-		return sailConnection.getStatements(subject, predicate.getIRI(), null, true, context)
+		return connection.getStatements(subject, predicate.getIRI(), null, true, context)
 				.stream()
 				.map(Statement::getObject)
 				.distinct();
@@ -92,13 +107,13 @@ public class BackwardChainingShapeSource implements ShapeSource {
 
 	public Stream<Statement> getAllStatements(Resource id) {
 		assert context != null;
-		return sailConnection.getStatements(id, null, null, true, context).stream().map(s -> ((Statement) s));
+		return connection.getStatements(id, null, null, true, context).stream().map(s -> ((Statement) s));
 	}
 
 	public Value getRdfFirst(Resource subject) {
 		assert context != null;
 
-		return sailConnection.getStatements(subject, RDF.FIRST, null, true, context)
+		return connection.getStatements(subject, RDF.FIRST, null, true, context)
 				.stream()
 				.map(Statement::getObject)
 				.findAny()
@@ -109,7 +124,7 @@ public class BackwardChainingShapeSource implements ShapeSource {
 	public Resource getRdfRest(Resource subject) {
 		assert context != null;
 
-		Value value = sailConnection.getStatements(subject, RDF.REST, null, true, context)
+		Value value = connection.getStatements(subject, RDF.REST, null, true, context)
 				.stream()
 				.map(Statement::getObject)
 				.findAny()
@@ -119,4 +134,8 @@ public class BackwardChainingShapeSource implements ShapeSource {
 		return ((Resource) value);
 	}
 
+	@Override
+	public void close() {
+		// we don't close the provided connection
+	}
 }

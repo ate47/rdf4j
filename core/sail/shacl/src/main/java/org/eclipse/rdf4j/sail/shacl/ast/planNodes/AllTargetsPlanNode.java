@@ -15,12 +15,13 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.text.StringEscapeUtils;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
+import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.sail.SailException;
-import org.eclipse.rdf4j.sail.shacl.ConnectionsGroup;
 import org.eclipse.rdf4j.sail.shacl.ast.StatementMatcher;
 import org.eclipse.rdf4j.sail.shacl.ast.constraintcomponents.ConstraintComponent;
 import org.eclipse.rdf4j.sail.shacl.ast.targets.EffectiveTarget;
+import org.eclipse.rdf4j.sail.shacl.wrapper.data.ConnectionsGroup;
 
 /**
  * Used to signal bulk validation. This plan node should only be used from EffectiveTarget#getAllTargets
@@ -33,7 +34,8 @@ public class AllTargetsPlanNode implements PlanNode {
 	private ValidationExecutionLogger validationExecutionLogger;
 
 	public AllTargetsPlanNode(ConnectionsGroup connectionsGroup,
-			ArrayDeque<EffectiveTarget.EffectiveTargetObject> chain, List<StatementMatcher.Variable> vars,
+			Resource[] dataGraph, ArrayDeque<EffectiveTarget.EffectiveTargetObject> chain,
+			List<StatementMatcher.Variable> vars,
 			ConstraintComponent.Scope scope) {
 		String query = chain.stream()
 				.map(EffectiveTarget.EffectiveTargetObject::getQueryFragment)
@@ -43,7 +45,7 @@ public class AllTargetsPlanNode implements PlanNode {
 		List<String> varNames = vars.stream().map(StatementMatcher.Variable::getName).collect(Collectors.toList());
 
 		this.select = new Select(connectionsGroup.getBaseConnection(), query, null,
-				new AllTargetsBindingSetMapper(varNames, scope, false));
+				new AllTargetsBindingSetMapper(varNames, scope, false), dataGraph);
 
 	}
 

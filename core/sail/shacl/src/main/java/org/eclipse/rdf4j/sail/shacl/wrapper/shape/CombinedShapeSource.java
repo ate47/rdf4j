@@ -15,11 +15,8 @@ import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
-import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDF4J;
-import org.eclipse.rdf4j.model.vocabulary.RSX;
-import org.eclipse.rdf4j.model.vocabulary.SHACL;
-import org.eclipse.rdf4j.repository.sail.SailRepositoryConnection;
+import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.sail.SailConnection;
 
 public class CombinedShapeSource implements ShapeSource {
@@ -28,15 +25,15 @@ public class CombinedShapeSource implements ShapeSource {
 	private final BackwardChainingShapeSource baseSail;
 	private final Resource[] context;
 
-	public CombinedShapeSource(SailRepositoryConnection shapesRepoWithReasoningConnection,
+	public CombinedShapeSource(RepositoryConnection shapesForForwardChainingConnection,
 			SailConnection sailConnection) {
-		this(shapesRepoWithReasoningConnection, sailConnection, null);
+		this(shapesForForwardChainingConnection, sailConnection, null);
 	}
 
-	private CombinedShapeSource(SailRepositoryConnection shapesRepoWithReasoningConnection,
+	private CombinedShapeSource(RepositoryConnection shapesForForwardChainingConnection,
 			SailConnection sailConnection,
 			Resource[] context) {
-		this.rdf4jShapesGraph = new ForwardChainingShapeSource(shapesRepoWithReasoningConnection);
+		this.rdf4jShapesGraph = new ForwardChainingShapeSource(shapesForForwardChainingConnection);
 		this.baseSail = new BackwardChainingShapeSource(sailConnection);
 		this.context = context;
 	}
@@ -74,7 +71,7 @@ public class CombinedShapeSource implements ShapeSource {
 
 	}
 
-	public Stream<Resource> getAllShapeContexts() {
+	public Stream<ShapesGraph> getAllShapeContexts() {
 		assert context == null;
 		return Stream.concat(rdf4jShapesGraph.getAllShapeContexts(), baseSail.getAllShapeContexts());
 	}
@@ -119,6 +116,12 @@ public class CombinedShapeSource implements ShapeSource {
 		Value rdfRest2 = baseSail.getRdfRest(subject);
 
 		return (Resource) (rdfRest1 != null ? rdfRest1 : rdfRest2);
+	}
+
+	@Override
+	public void close() {
+		rdf4jShapesGraph.close();
+		baseSail.close();
 	}
 
 }

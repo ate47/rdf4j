@@ -13,8 +13,6 @@ import static org.eclipse.rdf4j.model.util.Statements.statement;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.eclipse.rdf4j.common.annotation.Experimental;
-import org.eclipse.rdf4j.common.annotation.InternalUseOnly;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.common.iteration.LookAheadIteration;
 import org.eclipse.rdf4j.common.iteration.UnionIteration;
@@ -26,7 +24,6 @@ import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.sail.SailConnection;
 import org.eclipse.rdf4j.sail.SailException;
 import org.eclipse.rdf4j.sail.helpers.SailConnectionWrapper;
-import org.eclipse.rdf4j.sail.shacl.RdfsSubClassOfReasoner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
