@@ -225,22 +225,25 @@ public class ForwardChainingShapeSource implements ShapeSource {
 	public Value getRdfFirst(Resource subject) {
 		assert context != null;
 
-		return connection.getStatements(subject, RDF.FIRST, null, true, context)
-				.stream()
-				.map(Statement::getObject)
-				.findAny()
-				.orElse(null);
+		try (Stream<Statement> stream = connection.getStatements(subject, RDF.FIRST, null, true, context).stream()) {
+			return stream
+					.map(Statement::getObject)
+					.findAny()
+					.orElse(null);
+		}
 		// .orElseThrow(() -> new IllegalStateException("Corrupt rdf:list at rdf:first: " + subject));
 	}
 
 	public Resource getRdfRest(Resource subject) {
 		assert context != null;
 
-		return (Resource) connection.getStatements(subject, RDF.REST, null, true, context)
-				.stream()
-				.map(Statement::getObject)
-				.findAny()
-				.orElse(null);
+		try (Stream<Statement> stream = connection.getStatements(subject, RDF.REST, null, true, context).stream()) {
+			return (Resource) stream
+					.map(Statement::getObject)
+					.findAny()
+					.orElse(null);
+		}
+
 		// .orElseThrow(() -> new IllegalStateException("Corrupt rdf:list at rdf:rest: " + subject));
 
 //		if (value.isResource()) {

@@ -27,6 +27,7 @@ import org.eclipse.rdf4j.common.annotation.Experimental;
 import org.eclipse.rdf4j.common.annotation.InternalUseOnly;
 import org.eclipse.rdf4j.common.concurrent.locks.Lock;
 import org.eclipse.rdf4j.common.concurrent.locks.ReadPrefReadWriteLockManager;
+import org.eclipse.rdf4j.common.transaction.IsolationLevel;
 import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.common.transaction.TransactionSetting;
 import org.eclipse.rdf4j.model.IRI;
@@ -460,12 +461,12 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	}
 
 	@InternalUseOnly
-	public List<ContextWithShapes> getCurrentShapes() {
+	public List<ContextWithShapes> getCurrentShapes(IsolationLevel currentIsolationLevel) {
 		try (SailRepositoryConnection shapesRepoConnection = shapesRepo.getConnection()) {
 			try (NotifyingSailConnection sailConnection = getBaseSail().getConnection()) {
 				shapesRepoConnection.begin();
 				try {
-					sailConnection.begin();
+					sailConnection.begin(currentIsolationLevel);
 					try {
 						return getShapes(shapesRepoConnection, sailConnection);
 					} finally {

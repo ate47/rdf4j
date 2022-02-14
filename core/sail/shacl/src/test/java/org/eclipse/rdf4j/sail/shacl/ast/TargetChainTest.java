@@ -11,6 +11,7 @@ package org.eclipse.rdf4j.sail.shacl.ast;
 import java.io.IOException;
 import java.util.List;
 
+import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.sail.shacl.ShaclSail;
 import org.eclipse.rdf4j.sail.shacl.Utils;
 import org.eclipse.rdf4j.sail.shacl.ast.constraintcomponents.OrConstraintComponent;
@@ -22,7 +23,7 @@ public class TargetChainTest {
 	public void testTargetChain() throws IOException {
 		ShaclSail shaclSail = Utils.getInitializedShaclSail("shaclExactly.trig");
 
-		List<ContextWithShapes> shapes = shaclSail.getCurrentShapes();
+		List<ContextWithShapes> shapes = shaclSail.getCurrentShapes(IsolationLevels.NONE);
 
 		shaclSail.shutDown();
 	}
@@ -31,7 +32,7 @@ public class TargetChainTest {
 	public void testTargetChainOr() throws IOException {
 		ShaclSail shaclSail = Utils.getInitializedShaclSail("test-cases/or/maxCount/shacl.trig");
 
-		List<ContextWithShapes> shapes = shaclSail.getCurrentShapes();
+		List<ContextWithShapes> shapes = shaclSail.getCurrentShapes(IsolationLevels.NONE);
 
 		assert shapes.get(0).getShapes().get(0) instanceof NodeShape;
 

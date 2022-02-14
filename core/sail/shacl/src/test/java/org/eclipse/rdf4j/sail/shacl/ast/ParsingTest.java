@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 
+import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.model.impl.DynamicModel;
 import org.eclipse.rdf4j.model.impl.DynamicModelFactory;
 import org.eclipse.rdf4j.sail.shacl.ShaclSail;
@@ -26,7 +27,7 @@ public class ParsingTest {
 	public void initialTest() throws IOException {
 		ShaclSail shaclSail = Utils.getInitializedShaclSail("test-cases/datatype/not/shacl.trig");
 
-		List<Shape> shapes = shaclSail.getCurrentShapes().get(0).getShapes();
+		List<Shape> shapes = shaclSail.getCurrentShapes(IsolationLevels.NONE).get(0).getShapes();
 
 		DynamicModel emptyModel = new DynamicModelFactory().createEmptyModel();
 
@@ -39,7 +40,7 @@ public class ParsingTest {
 	public void testSplitting() throws IOException {
 		ShaclSail shaclSail = Utils.getInitializedShaclSail("shaclExactly.trig");
 
-		List<Shape> shapes = shaclSail.getCurrentShapes().get(0).getShapes();
+		List<Shape> shapes = shaclSail.getCurrentShapes(IsolationLevels.NONE).get(0).getShapes();
 
 		assertEquals(8, shapes.size());
 

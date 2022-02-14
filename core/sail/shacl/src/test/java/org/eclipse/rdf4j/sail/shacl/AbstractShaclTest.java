@@ -70,7 +70,6 @@ import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
 import org.eclipse.rdf4j.sail.shacl.ShaclSail.TransactionSettings.ValidationApproach;
 import org.eclipse.rdf4j.sail.shacl.ast.ContextWithShapes;
-import org.eclipse.rdf4j.sail.shacl.ast.Shape;
 import org.eclipse.rdf4j.sail.shacl.results.ValidationReport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.parallel.Execution;
@@ -980,7 +979,8 @@ abstract public class AbstractShaclTest {
 		SailRepository shaclRepository = getShaclSail(testCase, true);
 		try {
 
-			List<ContextWithShapes> shapes = ((ShaclSail) shaclRepository.getSail()).getCurrentShapes();
+			List<ContextWithShapes> shapes = ((ShaclSail) shaclRepository.getSail())
+					.getCurrentShapes(IsolationLevels.NONE);
 
 			Model shapesModel = new DynamicModelFactory().createEmptyModel();
 			HashSet<Resource> dedupe = new HashSet<>();

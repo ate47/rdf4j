@@ -222,7 +222,7 @@ public class NativeStoreBenchmark {
 	}
 
 	private InputStream getFile(String s) {
-		return new BufferedInputStream(NativeStoreBenchmark.class.getClassLoader().getResourceAsStream(s));
+		return NativeStoreBenchmark.class.getClassLoader().getResourceAsStream(s);
 	}
 
 }

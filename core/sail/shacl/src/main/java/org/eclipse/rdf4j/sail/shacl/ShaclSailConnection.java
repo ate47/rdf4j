@@ -715,7 +715,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 			stats.setEmptyIncludingCurrentTransaction(isEmpty());
 
-			List<ContextWithShapes> shapesBeforeRefresh = sail.getCurrentShapes();
+			List<ContextWithShapes> shapesBeforeRefresh = sail.getCurrentShapes(currentIsolationLevel);
 			List<ContextWithShapes> shapesAfterRefresh;
 
 			if (isShapeRefreshNeeded) {

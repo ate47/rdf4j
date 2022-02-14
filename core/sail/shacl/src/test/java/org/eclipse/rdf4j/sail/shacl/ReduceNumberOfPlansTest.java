@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.eclipse.rdf4j.common.exception.RDF4JException;
+import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
@@ -45,7 +46,7 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect = shaclSail.getCurrentShapes()
+				List<PlanNode> collect = shaclSail.getCurrentShapes(IsolationLevels.NONE)
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
@@ -59,7 +60,7 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect2 = shaclSail.getCurrentShapes()
+				List<PlanNode> collect2 = shaclSail.getCurrentShapes(IsolationLevels.NONE)
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
@@ -109,7 +110,7 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect1 = shaclSail.getCurrentShapes()
+				List<PlanNode> collect1 = shaclSail.getCurrentShapes(IsolationLevels.NONE)
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
@@ -124,7 +125,7 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect2 = shaclSail.getCurrentShapes()
+				List<PlanNode> collect2 = shaclSail.getCurrentShapes(IsolationLevels.NONE)
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
@@ -137,7 +138,7 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect3 = shaclSail.getCurrentShapes()
+				List<PlanNode> collect3 = shaclSail.getCurrentShapes(IsolationLevels.NONE)
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
