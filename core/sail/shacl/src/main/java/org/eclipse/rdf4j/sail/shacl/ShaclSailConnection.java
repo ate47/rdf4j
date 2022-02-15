@@ -715,19 +715,25 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 			stats.setEmptyIncludingCurrentTransaction(isEmpty());
 
-			List<ContextWithShapes> shapesBeforeRefresh = sail.getCurrentShapes(currentIsolationLevel);
+			List<ContextWithShapes> shapesBeforeRefresh = null;
+			if (!currentIsolationLevel.isCompatibleWith(IsolationLevels.SERIALIZABLE)) {
+				// if we are using SERIALIZABLE isolation there is no point trying to use the currently committed shapes
+				// since SERIALIZABLE isolation should handle any issues with inconsistencies
+				shapesBeforeRefresh = sail.getCurrentShapes(currentIsolationLevel);
+			}
+
 			List<ContextWithShapes> shapesAfterRefresh;
 
-			if (isShapeRefreshNeeded) {
+			if (isShapeRefreshNeeded || shapesBeforeRefresh == null) {
+				shapesModifiedInCurrentTransaction = isShapeRefreshNeeded;
 				isShapeRefreshNeeded = false;
-				shapesModifiedInCurrentTransaction = true;
 				shapesAfterRefresh = sail.getShapes(shapesRepoConnection, this);
 			} else {
 				shapesAfterRefresh = shapesBeforeRefresh;
 			}
 
 			if (!isBulkValidation() && addedStatementsSet.isEmpty() && removedStatementsSet.isEmpty()) {
-				if (shapesModifiedInCurrentTransaction) {
+				if (shapesModifiedInCurrentTransaction && shapesBeforeRefresh != null) {
 					// we can optimize which shapes to revalidate since no data has changed.
 					assert shapesBeforeRefresh != shapesAfterRefresh;
 

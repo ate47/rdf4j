@@ -521,7 +521,8 @@ public abstract class MultithreadedTest {
 
 		} finally {
 			if (executorService != null) {
-				executorService.shutdown();
+				List<Runnable> runnables = executorService.shutdownNow();
+				assert runnables.isEmpty();
 			}
 
 			repository.shutDown();
