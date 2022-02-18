@@ -23,7 +23,7 @@ public class TargetChainTest {
 	public void testTargetChain() throws IOException {
 		ShaclSail shaclSail = Utils.getInitializedShaclSail("shaclExactly.trig");
 
-		List<ContextWithShapes> shapes = shaclSail.getCurrentShapes(IsolationLevels.NONE);
+		List<ContextWithShapes> shapes = shaclSail.getCachedShapes().getShapes();
 
 		shaclSail.shutDown();
 	}
@@ -32,7 +32,7 @@ public class TargetChainTest {
 	public void testTargetChainOr() throws IOException {
 		ShaclSail shaclSail = Utils.getInitializedShaclSail("test-cases/or/maxCount/shacl.trig");
 
-		List<ContextWithShapes> shapes = shaclSail.getCurrentShapes(IsolationLevels.NONE);
+		List<ContextWithShapes> shapes = shaclSail.getCachedShapes().getShapes();
 
 		assert shapes.get(0).getShapes().get(0) instanceof NodeShape;
 

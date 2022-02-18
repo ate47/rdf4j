@@ -28,6 +28,7 @@ import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.RDF4J;
+import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.repository.sail.SailRepositoryConnection;
 import org.eclipse.rdf4j.sail.NotifyingSailConnection;
 import org.eclipse.rdf4j.sail.Sail;
@@ -72,7 +73,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	private final HashSet<Statement> addedStatementsSet = new HashSet<>();
 	private final HashSet<Statement> removedStatementsSet = new HashSet<>();
 
-	private boolean isShapeRefreshNeeded = false;
+	private boolean shapeRefreshNeeded = false;
 	private boolean shapesModifiedInCurrentTransaction = false;
 
 	public final ShaclSail sail;
@@ -83,11 +84,10 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 	private boolean preparedHasRun = false;
 
-	private final SailRepositoryConnection shapesRepoConnection;
+	private Lock shapesWriteLock;
+	private Lock shapesReadLock;
 
-	// write lock
-	private Lock writeLock;
-	private Lock readLock;
+	private final SailRepositoryConnection shapesRepoConnection;
 
 	// used to determine if we are currently registered as a connection listener (getting added/removed notifications)
 	private boolean connectionListenerActive = false;
@@ -96,6 +96,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 	private Settings transactionSettings;
 	private TransactionSetting[] transactionSettingsRaw = new TransactionSetting[0];
+	private ShaclSail.ShapesCache currentShapes;
 
 	ShaclSailConnection(ShaclSail sail, NotifyingSailConnection connection,
 			SailConnection previousStateConnection, SailConnection serializableConnection,
@@ -133,6 +134,10 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 		assert addedStatements == null;
 		assert removedStatements == null;
+		assert shapesReadLock == null;
+		assert shapesWriteLock == null;
+
+		currentShapes = sail.getCachedShapes();
 
 		stats = new Stats();
 
@@ -244,17 +249,6 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 		super.commit();
 		shapesRepoConnection.commit();
 
-		if (writeLock != null && writeLock.isActive()) {
-			writeLock = sail.releaseExclusiveWriteLock(writeLock);
-		}
-
-		if (readLock != null && readLock.isActive()) {
-			readLock = sail.releaseReadLock(readLock);
-		}
-
-		assert writeLock == null;
-		assert readLock == null;
-
 		if (sail.isPerformanceLogging()) {
 			logger.info("commit() excluding validation and cleanup took {} ms", System.currentTimeMillis() - before);
 		}
@@ -266,7 +260,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 			throws SailException {
 		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
 			shapesRepoConnection.add(subj, pred, obj, contexts);
-			isShapeRefreshNeeded = true;
+			shapeRefreshNeeded = true;
 		} else {
 			super.addStatement(modify, subj, pred, obj, contexts);
 		}
@@ -277,7 +271,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 			throws SailException {
 		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
 			shapesRepoConnection.remove(subj, pred, obj, contexts);
-			isShapeRefreshNeeded = true;
+			shapeRefreshNeeded = true;
 		} else {
 			super.removeStatement(modify, subj, pred, obj, contexts);
 		}
@@ -287,7 +281,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	public void addStatement(Resource subj, IRI pred, Value obj, Resource... contexts) throws SailException {
 		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
 			shapesRepoConnection.add(subj, pred, obj, contexts);
-			isShapeRefreshNeeded = true;
+			shapeRefreshNeeded = true;
 		} else {
 			super.addStatement(subj, pred, obj, contexts);
 		}
@@ -297,7 +291,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	public void removeStatements(Resource subj, IRI pred, Value obj, Resource... contexts) throws SailException {
 		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
 			shapesRepoConnection.remove(subj, pred, obj, contexts);
-			isShapeRefreshNeeded = true;
+			shapeRefreshNeeded = true;
 		} else {
 			super.removeStatements(subj, pred, obj, contexts);
 		}
@@ -307,13 +301,29 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	public void clear(Resource... contexts) throws SailException {
 		if (Arrays.asList(contexts).contains(RDF4J.SHACL_SHAPE_GRAPH)) {
 			shapesRepoConnection.clear();
-			isShapeRefreshNeeded = true;
+			shapeRefreshNeeded = true;
 		}
 		super.clear(contexts);
 	}
 
 	@Override
 	public void rollback() throws SailException {
+
+		if (shapesReadLock != null) {
+			shapesReadLock.release();
+			shapesReadLock = null;
+		}
+
+		boolean shapesCacheDisabled = false;
+		if (shapesWriteLock != null) {
+			try {
+				shapesCacheDisabled = true;
+				sail.disableShapesCache();
+			} finally {
+				shapesWriteLock.release();
+				shapesWriteLock = null;
+			}
+		}
 
 		try {
 			if (previousStateConnection.isActive()) {
@@ -326,24 +336,24 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 				}
 
 			} finally {
+
 				try {
 					if (isActive()) {
 						super.rollback();
 					}
 
 				} finally {
-					if ((writeLock != null && writeLock.isActive())) {
-						writeLock = sail.releaseExclusiveWriteLock(writeLock);
+					try {
+						if (shapesCacheDisabled) {
+							assert shapesWriteLock == null;
+							assert shapesReadLock == null;
+
+							shapesWriteLock = sail.getShapesWriteLock();
+						}
+					} finally {
+						cleanup();
 					}
 
-					if ((readLock != null && readLock.isActive())) {
-						readLock = sail.releaseReadLock(readLock);
-					}
-
-					assert writeLock == null;
-					assert readLock == null;
-
-					cleanup();
 				}
 			}
 		}
@@ -352,37 +362,61 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 	private void cleanup() {
 		long before = 0;
-		if (sail.isPerformanceLogging()) {
-			before = System.currentTimeMillis();
-		}
 
-		logger.debug("Cleanup");
-
-		if (addedStatements != null) {
-			if (addedStatements != sail.getBaseSail()) {
-				addedStatements.shutDown();
+		try {
+			if (sail.isPerformanceLogging()) {
+				before = System.currentTimeMillis();
 			}
-			addedStatements = null;
-		}
 
-		if (removedStatements != null) {
-			removedStatements.shutDown();
-			removedStatements = null;
-		}
+			logger.debug("Cleanup");
 
-		addedStatementsSet.clear();
-		removedStatementsSet.clear();
-		stats = null;
-		preparedHasRun = false;
-		isShapeRefreshNeeded = false;
-		shapesModifiedInCurrentTransaction = false;
+			currentShapes = null;
 
-		assert writeLock == null;
-		assert readLock == null;
+			if (addedStatements != null) {
+				if (addedStatements != sail.getBaseSail()) {
+					addedStatements.shutDown();
+				}
+				addedStatements = null;
+			}
 
-		currentIsolationLevel = null;
-		if (sail.isPerformanceLogging()) {
-			logger.info("cleanup() took {} ms", System.currentTimeMillis() - before);
+			if (removedStatements != null) {
+				removedStatements.shutDown();
+				removedStatements = null;
+			}
+
+			addedStatementsSet.clear();
+			removedStatementsSet.clear();
+			stats = null;
+			preparedHasRun = false;
+			shapeRefreshNeeded = false;
+			shapesModifiedInCurrentTransaction = false;
+
+			currentIsolationLevel = null;
+
+		} finally {
+			try {
+				try {
+					if (shapesWriteLock != null) {
+						// we need to refresh the shapes cache!
+						try {
+							sail.refreshShapesCache();
+						} finally {
+							shapesWriteLock.release();
+						}
+					}
+				} finally {
+					if (shapesReadLock != null) {
+						shapesReadLock.release();
+					}
+				}
+			} finally {
+				shapesWriteLock = null;
+				shapesReadLock = null;
+			}
+
+			if (sail.isPerformanceLogging()) {
+				logger.info("cleanup() took {} ms", System.currentTimeMillis() - before);
+			}
 		}
 
 	}
@@ -643,15 +677,8 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 						} finally {
 							try {
 								super.close();
-
 							} finally {
-								try {
-									sail.closeConnection(this);
-								} finally {
-									assert writeLock == null;
-									assert readLock == null;
-
-								}
+								sail.closeConnection(this);
 							}
 						}
 					}
@@ -667,6 +694,11 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 		try {
 			if (!isValidationEnabled()) {
 				logger.debug("Validation skipped because validation was disabled");
+				if (shapeRefreshNeeded || !connectionListenerActive) {
+					// getting the shapes write lock will ensure that the shapes cache is refreshed when cleanup() is
+					// called after commit/rollback
+					shapesWriteLock = sail.getShapesWriteLock();
+				}
 				return;
 			}
 
@@ -679,35 +711,25 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 			// SNAPSHOT isolation but validate as if it was using SERIALIZABLE isolation
 			boolean useSerializableValidation = shouldUseSerializableValidation() && !isBulkValidation();
 
-			if (useSerializableValidation) {
-				if (!(writeLock != null && writeLock.isActive())) {
-					writeLock = sail.acquireExclusiveWriteLock(writeLock);
-				}
-			} else {
+//			if (useSerializableValidation) {
+//
+//			} else {
 
-				// only allow one transaction to modify the shapes at a time
-				if (isShapeRefreshNeeded) {
-					if (!(writeLock != null && writeLock.isActive())) {
-						writeLock = sail.acquireExclusiveWriteLock(writeLock);
-					}
-				} else {
-					if (!(readLock != null && readLock.isActive())) {
-						readLock = sail.acquireReadLock();
-					}
-				}
-			}
+			// only allow one transaction to modify the shapes at a time
 
-			assert !isShapeRefreshNeeded
+//			}
+
+			assert !shapeRefreshNeeded
 					|| !shapesModifiedInCurrentTransaction : "isShapeRefreshNeeded should trigger shapesModifiedInCurrentTransaction once we have loaded the modified shapes, but shapesModifiedInCurrentTransaction should be null until then";
 
 			// since we are within the locked section we can assume that if there are no shapes to validate then we can
 			// skip validation
-			if (!isShapeRefreshNeeded && !sail.hasShapes()) {
+			if (!shapeRefreshNeeded && !sail.hasShapes()) {
 				logger.debug("Validation skipped because there are no shapes to validate");
 				return;
 			}
 
-			if (!isShapeRefreshNeeded && !isBulkValidation() && addedStatementsSet.isEmpty()
+			if (!shapeRefreshNeeded && !isBulkValidation() && addedStatementsSet.isEmpty()
 					&& removedStatementsSet.isEmpty()) {
 				logger.debug("Nothing has changed, nothing to validate.");
 				return;
@@ -715,53 +737,69 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 			stats.setEmptyIncludingCurrentTransaction(isEmpty());
 
-			List<ContextWithShapes> shapesBeforeRefresh = null;
-			if (!currentIsolationLevel.isCompatibleWith(IsolationLevels.SERIALIZABLE)) {
-				// if we are using SERIALIZABLE isolation there is no point trying to use the currently committed shapes
-				// since SERIALIZABLE isolation should handle any issues with inconsistencies
-				shapesBeforeRefresh = sail.getCurrentShapes(currentIsolationLevel);
-			}
+			List<ContextWithShapes> shapesAfterRefresh = null;
 
-			List<ContextWithShapes> shapesAfterRefresh;
+			if (shapeRefreshNeeded || !connectionListenerActive) {
+				shapesWriteLock = sail.getShapesWriteLock();
 
-			if (isShapeRefreshNeeded || shapesBeforeRefresh == null) {
-				shapesModifiedInCurrentTransaction = isShapeRefreshNeeded;
-				isShapeRefreshNeeded = false;
+				shapesModifiedInCurrentTransaction = shapeRefreshNeeded;
+				shapeRefreshNeeded = false;
 				shapesAfterRefresh = sail.getShapes(shapesRepoConnection, this);
-			} else {
-				shapesAfterRefresh = shapesBeforeRefresh;
-			}
-
-			if (!isBulkValidation() && addedStatementsSet.isEmpty() && removedStatementsSet.isEmpty()) {
-				if (shapesModifiedInCurrentTransaction && shapesBeforeRefresh != null) {
-					// we can optimize which shapes to revalidate since no data has changed.
-					assert shapesBeforeRefresh != shapesAfterRefresh;
-
-					// TODO: We also need to compare the shapes within each ContextWithShapes
-					HashSet<ContextWithShapes> shapesBeforeRefreshSet = new HashSet<>(shapesBeforeRefresh);
-
-					shapesAfterRefresh = shapesAfterRefresh.stream()
-							.filter(shape -> !shapesBeforeRefreshSet.contains(shape))
-							.collect(Collectors.toList());
+				if (getIsolationLevel().isCompatibleWith(IsolationLevels.SERIALIZABLE)) {
+//					throw new UnsupportedOperationException("PROBABLY NEED TO IMPLEMENT SOMETHING HERE!");
+				}
+				{
 
 				}
+			} else {
+				shapesReadLock = sail.getShapesReadLock();
+				while (true) {
+					if (currentShapes.isDisabled()) {
+						shapesReadLock.release();
+						Thread.yield();
+						shapesReadLock = sail.getShapesReadLock();
+						currentShapes = sail.getCachedShapes();
+					} else if (currentShapes.isOutdated()) {
+						currentShapes = sail.getCachedShapes();
+					} else {
+						break;
+					}
+				}
+
+				assert !currentShapes.isDisabled();
+				assert !currentShapes.isOutdated();
 			}
 
-			if (shapesAfterRefresh.isEmpty()) {
-				logger.debug("Validation skipped because there are no shapes to validate");
-				return;
-			}
+//			if (!isBulkValidation() && addedStatementsSet.isEmpty() && removedStatementsSet.isEmpty()) {
+//				if (shapesModifiedInCurrentTransaction && shapesBeforeRefresh != null) {
+//					// we can optimize which shapes to revalidate since no data has changed.
+//
+//
+//
+//					// TODO: We also need to compare the shapes within each ContextWithShapes
+//					HashSet<ContextWithShapes> shapesBeforeRefreshSet = new HashSet<>(shapesBeforeRefresh);
+//
+//					shapesAfterRefresh = shapesAfterRefresh.stream()
+//						.filter(shape -> !shapesBeforeRefreshSet.contains(shape))
+//						.collect(Collectors.toList());
+//
+//				}
+//			}
+
+//			if (shapesAfterRefresh.isEmpty()) {
+//				logger.debug("Validation skipped because there are no shapes to validate");
+//				return;
+//			}
 
 			prepareValidation();
 
 			ValidationReport invalidTuples = null;
 			if (useSerializableValidation) {
 				synchronized (sail) {
-
 					if (!sail.usesSingleConnection()) {
-						invalidTuples = serializableValidation(shapesAfterRefresh);
+						invalidTuples = serializableValidation(
+								shapesAfterRefresh != null ? shapesAfterRefresh : currentShapes.getShapes());
 					}
-
 				}
 			}
 
@@ -774,7 +812,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 //					writeLock = null;
 //				}
 
-				invalidTuples = validate(shapesAfterRefresh,
+				invalidTuples = validate(shapesAfterRefresh != null ? shapesAfterRefresh : currentShapes.getShapes(),
 						shapesModifiedInCurrentTransaction || isBulkValidation());
 			}
 
@@ -859,6 +897,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 		if (preparedHasRun) {
 			throw new IllegalStateException("Detected changes after prepare() has been called.");
 		}
+		checkIfShapesRefreshIsNeeded(statement);
 		boolean add = addedStatementsSet.add(statement);
 		if (!add) {
 			removedStatementsSet.remove(statement);
@@ -873,6 +912,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 		if (preparedHasRun) {
 			throw new IllegalStateException("Detected changes after prepare() has been called.");
 		}
+		checkIfShapesRefreshIsNeeded(statement);
 
 		boolean add = removedStatementsSet.add(statement);
 		if (!add) {
@@ -880,6 +920,14 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 		}
 
 		checkTransactionalValidationLimit();
+	}
+
+	private void checkIfShapesRefreshIsNeeded(Statement statement) {
+		if (statement.getSubject().toString().startsWith(SHACL.NAMESPACE) ||
+				statement.getPredicate().toString().startsWith(SHACL.NAMESPACE) ||
+				statement.getObject().toString().startsWith(SHACL.NAMESPACE)) {
+			shapeRefreshNeeded = true;
+		}
 	}
 
 	private void checkTransactionalValidationLimit() {

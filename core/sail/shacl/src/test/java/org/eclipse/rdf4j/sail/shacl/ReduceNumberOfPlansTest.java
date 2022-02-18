@@ -46,7 +46,8 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect = shaclSail.getCurrentShapes(IsolationLevels.NONE)
+				List<PlanNode> collect = shaclSail.getCachedShapes()
+						.getShapes()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
@@ -60,7 +61,8 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect2 = shaclSail.getCurrentShapes(IsolationLevels.NONE)
+				List<PlanNode> collect2 = shaclSail.getCachedShapes()
+						.getShapes()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
@@ -110,7 +112,8 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect1 = shaclSail.getCurrentShapes(IsolationLevels.NONE)
+				List<PlanNode> collect1 = shaclSail.getCachedShapes()
+						.getShapes()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
@@ -125,7 +128,8 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect2 = shaclSail.getCurrentShapes(IsolationLevels.NONE)
+				List<PlanNode> collect2 = shaclSail.getCachedShapes()
+						.getShapes()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
@@ -138,7 +142,8 @@ public class ReduceNumberOfPlansTest {
 			refreshAddedRemovedStatements(connection);
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
-				List<PlanNode> collect3 = shaclSail.getCurrentShapes(IsolationLevels.NONE)
+				List<PlanNode> collect3 = shaclSail.getCachedShapes()
+						.getShapes()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))

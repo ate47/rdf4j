@@ -980,7 +980,8 @@ abstract public class AbstractShaclTest {
 		try {
 
 			List<ContextWithShapes> shapes = ((ShaclSail) shaclRepository.getSail())
-					.getCurrentShapes(IsolationLevels.NONE);
+					.getCachedShapes()
+					.getShapes();
 
 			Model shapesModel = new DynamicModelFactory().createEmptyModel();
 			HashSet<Resource> dedupe = new HashSet<>();

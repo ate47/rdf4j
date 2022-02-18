@@ -12,6 +12,7 @@ import java.io.File;
 import java.lang.ref.Cleaner;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -27,7 +28,7 @@ import org.eclipse.rdf4j.common.annotation.Experimental;
 import org.eclipse.rdf4j.common.annotation.InternalUseOnly;
 import org.eclipse.rdf4j.common.concurrent.locks.Lock;
 import org.eclipse.rdf4j.common.concurrent.locks.ReadPrefReadWriteLockManager;
-import org.eclipse.rdf4j.common.transaction.IsolationLevel;
+import org.eclipse.rdf4j.common.concurrent.locks.StampedLockManager;
 import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.common.transaction.TransactionSetting;
 import org.eclipse.rdf4j.model.IRI;
@@ -42,7 +43,6 @@ import org.eclipse.rdf4j.repository.sail.SailRepositoryConnection;
 import org.eclipse.rdf4j.sail.NotifyingSail;
 import org.eclipse.rdf4j.sail.NotifyingSailConnection;
 import org.eclipse.rdf4j.sail.Sail;
-import org.eclipse.rdf4j.sail.SailConflictException;
 import org.eclipse.rdf4j.sail.SailConnection;
 import org.eclipse.rdf4j.sail.SailException;
 import org.eclipse.rdf4j.sail.memory.MemoryStore;
@@ -169,6 +169,8 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	// to synchronize validation so that SNAPSHOT isolation is sufficient to achieve SERIALIZABLE isolation wrt.
 	// validation
 	final private ReadPrefReadWriteLockManager lockManager = new ReadPrefReadWriteLockManager();
+	final private StampedLockManager shapesCacheLockManager = new StampedLockManager();
+	private volatile List<ContextWithShapes> cachedShapes = Collections.emptyList();
 
 	// This is used to keep track of the current connection, if the opening and closing of connections is done serially.
 	// If it is done in parallel, then this will catch that and the multipleConcurrentConnections == true.
@@ -180,6 +182,37 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	private final AtomicBoolean initialized = new AtomicBoolean(false);
 
 	private final RevivableExecutorService parallelValidationExecutorService;
+
+	Lock getShapesWriteLock() {
+		try {
+			return shapesCacheLockManager.getWriteLock();
+		} catch (InterruptedException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
+	Lock getShapesReadLock() {
+		try {
+			return shapesCacheLockManager.getReadLock();
+		} catch (InterruptedException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
+	void refreshShapesCache() {
+		if (!shapesCacheLockManager.isWriterActive())
+			throw new IllegalStateException("Should have been write locked!");
+		try {
+			cachedShapes = getShapes();
+		} catch (Throwable e) {
+			cachedShapes = null;
+			throw e;
+		}
+	}
+
+	public void disableShapesCache() {
+		cachedShapes = null;
+	}
 
 	static class CleanableState implements Runnable {
 
@@ -399,74 +432,14 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 		return shaclSailConnection;
 	}
 
-	/**
-	 * Tries to obtain an exclusive write lock on this store. This method will block until either the lock is obtained
-	 * or an interrupt signal is received.
-	 *
-	 * @throws SailException if the thread is interrupted while waiting to obtain the lock.
-	 */
-	Lock acquireExclusiveWriteLock(Lock lock) {
-
-		if (lock != null && lock.isActive()) {
-			return lock;
-		}
-
-		assert lock == null;
-
-		if (threadHoldingWriteLock == Thread.currentThread()) {
-			throw new SailConflictException(
-					"Deadlock detected when a single thread uses multiple connections " +
-							"interleaved and one connection has modified the shapes without calling commit() " +
-							"while another connection also tries to modify the shapes!");
-		}
-
-		try {
-			Lock writeLock = lockManager.getWriteLock();
-			threadHoldingWriteLock = Thread.currentThread();
-			return writeLock;
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	/**
-	 * Releases the exclusive write lock.
-	 *
-	 * @return
-	 */
-	Lock releaseExclusiveWriteLock(Lock lock) {
-		threadHoldingWriteLock = null;
-		lock.release();
-		return null;
-	}
-
-	Lock acquireReadLock() {
-		if (threadHoldingWriteLock == Thread.currentThread()) {
-			throw new SailConflictException(
-					"Deadlock detected when a single thread uses multiple connections " +
-							"interleaved and one connection has modified the shapes without calling commit() " +
-							"while another connection calls commit()!");
-		}
-		try {
-			return lockManager.getReadLock();
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}
-
-	}
-
-	Lock releaseReadLock(Lock lock) {
-		lock.release();
-		return null;
-	}
-
 	@InternalUseOnly
-	public List<ContextWithShapes> getCurrentShapes(IsolationLevel currentIsolationLevel) {
+	public List<ContextWithShapes> getShapes() {
+
 		try (SailRepositoryConnection shapesRepoConnection = shapesRepo.getConnection()) {
 			try (NotifyingSailConnection sailConnection = getBaseSail().getConnection()) {
-				shapesRepoConnection.begin();
+				shapesRepoConnection.begin(IsolationLevels.READ_COMMITTED);
 				try {
-					sailConnection.begin(currentIsolationLevel);
+					sailConnection.begin(IsolationLevels.READ_COMMITTED);
 					try {
 						return getShapes(shapesRepoConnection, sailConnection);
 					} finally {
@@ -476,6 +449,42 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 					shapesRepoConnection.commit();
 				}
 			}
+		}
+
+	}
+
+	@InternalUseOnly
+	public ShapesCache getCachedShapes() {
+		try {
+			StampedLockManager.OptimisticReadLock optimisticReadLock = shapesCacheLockManager.getOptimisticReadLock();
+			return new ShapesCache(cachedShapes, optimisticReadLock);
+		} catch (InterruptedException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
+	@InternalUseOnly
+	public static class ShapesCache {
+
+		private final List<ContextWithShapes> shapes;
+		private final StampedLockManager.OptimisticReadLock optimisticReadLock;
+
+		public ShapesCache(List<ContextWithShapes> shapes, StampedLockManager.OptimisticReadLock optimisticReadLock) {
+			this.shapes = shapes;
+			this.optimisticReadLock = optimisticReadLock;
+		}
+
+		public List<ContextWithShapes> getShapes() {
+			return shapes;
+		}
+
+		public boolean isOutdated() {
+			assert shapes != null;
+			return !optimisticReadLock.isActive();
+		}
+
+		public boolean isDisabled() {
+			return shapes == null;
 		}
 	}
 
