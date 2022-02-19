@@ -483,7 +483,7 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 			return !optimisticReadLock.isActive();
 		}
 
-		public boolean isDisabled() {
+		public boolean isBlocked() {
 			return shapes == null;
 		}
 	}

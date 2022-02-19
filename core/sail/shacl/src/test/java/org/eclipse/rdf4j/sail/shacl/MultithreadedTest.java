@@ -234,11 +234,11 @@ public abstract class MultithreadedTest {
 								try {
 									connection.commit();
 								} catch (RepositoryException e) {
+									connection.rollback();
 									if (!((e.getCause() instanceof ShaclSailValidationException)
 											|| e.getCause() instanceof SailConflictException)) {
 										throw e;
 									}
-									connection.rollback();
 								}
 
 							}
@@ -388,7 +388,6 @@ public abstract class MultithreadedTest {
 		sail.setSerializableValidation(false);
 
 		runValidationFailuresTest(sail, IsolationLevels.READ_COMMITTED, 100);
-
 	}
 
 	@Test
@@ -448,11 +447,11 @@ public abstract class MultithreadedTest {
 							try {
 								connection.commit();
 							} catch (RepositoryException e) {
+								connection.rollback();
 								if (!((e.getCause() instanceof ShaclSailValidationException)
 										|| e.getCause() instanceof SailConflictException)) {
 									throw e;
 								}
-								connection.rollback();
 							}
 
 							connection.begin(isolationLevels);
@@ -461,11 +460,11 @@ public abstract class MultithreadedTest {
 							try {
 								connection.commit();
 							} catch (RepositoryException e) {
+								connection.rollback();
 								if (!((e.getCause() instanceof ShaclSailValidationException)
 										|| e.getCause() instanceof SailConflictException)) {
 									throw e;
 								}
-								connection.rollback();
 							}
 
 							connection.begin(isolationLevels);
@@ -474,11 +473,11 @@ public abstract class MultithreadedTest {
 							try {
 								connection.commit();
 							} catch (RepositoryException e) {
+								connection.rollback();
 								if (!((e.getCause() instanceof ShaclSailValidationException)
 										|| e.getCause() instanceof SailConflictException)) {
 									throw e;
 								}
-								connection.rollback();
 							}
 
 							connection.begin(isolationLevels);
@@ -487,11 +486,11 @@ public abstract class MultithreadedTest {
 							try {
 								connection.commit();
 							} catch (RepositoryException e) {
+								connection.rollback();
 								if (!((e.getCause() instanceof ShaclSailValidationException)
 										|| e.getCause() instanceof SailConflictException)) {
 									throw e;
 								}
-								connection.rollback();
 							}
 						}
 					})

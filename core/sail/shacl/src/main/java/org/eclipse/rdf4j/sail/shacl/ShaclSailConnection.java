@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -32,6 +33,7 @@ import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.repository.sail.SailRepositoryConnection;
 import org.eclipse.rdf4j.sail.NotifyingSailConnection;
 import org.eclipse.rdf4j.sail.Sail;
+import org.eclipse.rdf4j.sail.SailConflictException;
 import org.eclipse.rdf4j.sail.SailConnection;
 import org.eclipse.rdf4j.sail.SailConnectionListener;
 import org.eclipse.rdf4j.sail.SailException;
@@ -62,6 +64,7 @@ import org.slf4j.LoggerFactory;
 public class ShaclSailConnection extends NotifyingSailConnectionWrapper implements SailConnectionListener {
 
 	private static final Logger logger = LoggerFactory.getLogger(ShaclSailConnection.class);
+	public static final long MILLIS_TO_WAIT_WHEN_CACHE_IS_BLOCKED = TimeUnit.SECONDS.toMillis(1);
 
 	private final SailConnection previousStateConnection;
 	private final SailConnection serializableConnection;
@@ -96,7 +99,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 	private Settings transactionSettings;
 	private TransactionSetting[] transactionSettingsRaw = new TransactionSetting[0];
-	private ShaclSail.ShapesCache currentShapes;
+	private ShaclSail.ShapesCache currentShapesCache;
 
 	ShaclSailConnection(ShaclSail sail, NotifyingSailConnection connection,
 			SailConnection previousStateConnection, SailConnection serializableConnection,
@@ -137,7 +140,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 		assert shapesReadLock == null;
 		assert shapesWriteLock == null;
 
-		currentShapes = sail.getCachedShapes();
+		currentShapesCache = sail.getCachedShapes();
 
 		stats = new Stats();
 
@@ -370,7 +373,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 			logger.debug("Cleanup");
 
-			currentShapes = null;
+			currentShapesCache = null;
 
 			if (addedStatements != null) {
 				if (addedStatements != sail.getBaseSail()) {
@@ -740,7 +743,10 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 			List<ContextWithShapes> shapesAfterRefresh = null;
 
 			if (shapeRefreshNeeded || !connectionListenerActive) {
-				shapesWriteLock = sail.getShapesWriteLock();
+				if (shapesWriteLock == null) {
+					shapesWriteLock = sail.getShapesWriteLock();
+				}
+				assert shapesWriteLock.isActive();
 
 				shapesModifiedInCurrentTransaction = shapeRefreshNeeded;
 				shapeRefreshNeeded = false;
@@ -752,22 +758,39 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 				}
 			} else {
-				shapesReadLock = sail.getShapesReadLock();
+				if (shapesReadLock == null) {
+					shapesReadLock = sail.getShapesReadLock();
+				}
+				assert shapesReadLock.isActive();
+				long deadlockTimeout = -1;
 				while (true) {
-					if (currentShapes.isDisabled()) {
+					if (currentShapesCache.isBlocked()) {
 						shapesReadLock.release();
+						shapesReadLock = null;
+
+						if (deadlockTimeout == -1) {
+							deadlockTimeout = System.currentTimeMillis();
+						} else {
+							if (System.currentTimeMillis() - deadlockTimeout > MILLIS_TO_WAIT_WHEN_CACHE_IS_BLOCKED) {
+								throw new SailConflictException(
+										"Timed out "
+												+ TimeUnit.MILLISECONDS.toSeconds(MILLIS_TO_WAIT_WHEN_CACHE_IS_BLOCKED)
+												+ "s waiting for other transactions to finish updating the SHACL Shapes!");
+							}
+						}
+
 						Thread.yield();
 						shapesReadLock = sail.getShapesReadLock();
-						currentShapes = sail.getCachedShapes();
-					} else if (currentShapes.isOutdated()) {
-						currentShapes = sail.getCachedShapes();
+						currentShapesCache = sail.getCachedShapes();
+					} else if (currentShapesCache.isOutdated()) {
+						currentShapesCache = sail.getCachedShapes();
 					} else {
 						break;
 					}
 				}
 
-				assert !currentShapes.isDisabled();
-				assert !currentShapes.isOutdated();
+				assert !currentShapesCache.isBlocked();
+				assert !currentShapesCache.isOutdated();
 			}
 
 //			if (!isBulkValidation() && addedStatementsSet.isEmpty() && removedStatementsSet.isEmpty()) {
@@ -798,7 +821,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 				synchronized (sail) {
 					if (!sail.usesSingleConnection()) {
 						invalidTuples = serializableValidation(
-								shapesAfterRefresh != null ? shapesAfterRefresh : currentShapes.getShapes());
+								shapesAfterRefresh != null ? shapesAfterRefresh : currentShapesCache.getShapes());
 					}
 				}
 			}
@@ -812,7 +835,8 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 //					writeLock = null;
 //				}
 
-				invalidTuples = validate(shapesAfterRefresh != null ? shapesAfterRefresh : currentShapes.getShapes(),
+				invalidTuples = validate(
+						shapesAfterRefresh != null ? shapesAfterRefresh : currentShapesCache.getShapes(),
 						shapesModifiedInCurrentTransaction || isBulkValidation());
 			}
 
@@ -923,6 +947,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	}
 
 	private void checkIfShapesRefreshIsNeeded(Statement statement) {
+		// TODO: This is really slow and we need a better way of doing this!!!
 		if (statement.getSubject().toString().startsWith(SHACL.NAMESPACE) ||
 				statement.getPredicate().toString().startsWith(SHACL.NAMESPACE) ||
 				statement.getObject().toString().startsWith(SHACL.NAMESPACE)) {

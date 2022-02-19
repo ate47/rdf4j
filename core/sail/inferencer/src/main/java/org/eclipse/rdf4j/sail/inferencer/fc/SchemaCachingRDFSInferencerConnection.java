@@ -754,7 +754,7 @@ public class SchemaCachingRDFSInferencerConnection extends InferencerConnectionW
 
 		super.rollback();
 
-		if (statementsAdded || statementsRemoved || schemaChange) {
+		if (schemaChange) {
 			sail.clearInferenceTables();
 			regenerateCacheAndInferenceMaps(false);
 		}
