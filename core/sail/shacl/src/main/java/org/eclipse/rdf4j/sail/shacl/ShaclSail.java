@@ -160,15 +160,18 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	private static final Logger logger = LoggerFactory.getLogger(ShaclSail.class);
 	private static final Cleaner cleaner = Cleaner.create();
 
+	long MILLIS_TO_WAIT_WHEN_CACHE_IS_BLOCKED = TimeUnit.SECONDS.toMillis(10);
+
 	/**
 	 * an initialized {@link Repository} for storing/retrieving Shapes data
 	 */
 	private SailRepository shapesRepo;
 
-	// lockManager used for read/write locks used to synchronize changes to the shapes (and caching of shapes) and used
-	// to synchronize validation so that SNAPSHOT isolation is sufficient to achieve SERIALIZABLE isolation wrt.
-	// validation
+	// lockManager used for read/write locks used to synchronize validation so that SNAPSHOT isolation is sufficient to
+	// achieve SERIALIZABLE isolation wrt. validation
 	final private ReadPrefReadWriteLockManager lockManager = new ReadPrefReadWriteLockManager();
+
+	// shapesCacheLockManager used to keep track of changes to the cache
 	final private StampedLockManager shapesCacheLockManager = new StampedLockManager();
 	private volatile List<ContextWithShapes> cachedShapes = Collections.emptyList();
 
@@ -182,6 +185,22 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	private final AtomicBoolean initialized = new AtomicBoolean(false);
 
 	private final RevivableExecutorService parallelValidationExecutorService;
+
+	Lock getWriteLock() {
+		try {
+			return lockManager.getWriteLock();
+		} catch (InterruptedException e) {
+			throw new IllegalStateException(e);
+		}
+	}
+
+	Lock getReadLock() {
+		try {
+			return lockManager.getReadLock();
+		} catch (InterruptedException e) {
+			throw new IllegalStateException(e);
+		}
+	}
 
 	Lock getShapesWriteLock() {
 		try {
