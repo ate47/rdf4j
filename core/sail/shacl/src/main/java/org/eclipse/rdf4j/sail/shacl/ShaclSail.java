@@ -49,6 +49,7 @@ import org.eclipse.rdf4j.sail.memory.MemoryStore;
 import org.eclipse.rdf4j.sail.shacl.ast.ContextWithShapes;
 import org.eclipse.rdf4j.sail.shacl.ast.Shape;
 import org.eclipse.rdf4j.sail.shacl.wrapper.shape.CombinedShapeSource;
+import org.eclipse.rdf4j.sail.shacl.wrapper.shape.ShapeSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -218,11 +219,11 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 		}
 	}
 
-	void refreshShapesCache() {
+	void refreshShapesCache(IRI[] shapesGraphs) {
 		if (!shapesCacheLockManager.isWriterActive())
 			throw new IllegalStateException("Should have been write locked!");
 		try {
-			cachedShapes = getShapes();
+			cachedShapes = getShapes(shapesGraphs);
 		} catch (Throwable e) {
 			cachedShapes = null;
 			throw e;
@@ -377,10 +378,12 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	}
 
 	@InternalUseOnly
-	public List<ContextWithShapes> getShapes(RepositoryConnection shapesRepoConnection, SailConnection sailConnection)
+	public List<ContextWithShapes> getShapes(RepositoryConnection shapesRepoConnection, SailConnection sailConnection,
+			IRI[] shapesGraphs)
 			throws SailException {
 
-		try (CombinedShapeSource combinedShapeSource = new CombinedShapeSource(shapesRepoConnection, sailConnection)) {
+		try (ShapeSource combinedShapeSource = new CombinedShapeSource(shapesRepoConnection, sailConnection)
+				.withContext(shapesGraphs)) {
 			return Shape.Factory.getShapes(
 					combinedShapeSource,
 					this);
@@ -452,7 +455,7 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	}
 
 	@InternalUseOnly
-	public List<ContextWithShapes> getShapes() {
+	public List<ContextWithShapes> getShapes(IRI[] shapesGraphs) {
 
 		try (SailRepositoryConnection shapesRepoConnection = shapesRepo.getConnection()) {
 			try (NotifyingSailConnection sailConnection = getBaseSail().getConnection()) {
@@ -460,7 +463,7 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 				try {
 					sailConnection.begin(IsolationLevels.READ_COMMITTED);
 					try {
-						return getShapes(shapesRepoConnection, sailConnection);
+						return getShapes(shapesRepoConnection, sailConnection, shapesGraphs);
 					} finally {
 						sailConnection.commit();
 					}

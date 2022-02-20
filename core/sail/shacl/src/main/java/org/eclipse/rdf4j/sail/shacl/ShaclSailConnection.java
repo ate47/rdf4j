@@ -15,7 +15,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -29,7 +28,6 @@ import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.RDF4J;
-import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.repository.sail.SailRepositoryConnection;
 import org.eclipse.rdf4j.sail.NotifyingSailConnection;
 import org.eclipse.rdf4j.sail.Sail;
@@ -68,6 +66,9 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	private final SailConnection previousStateConnection;
 	private final SailConnection serializableConnection;
 	private final SailConnection previousStateSerializableConnection;
+
+	private final boolean useDefaultShapesGraph;
+	private final IRI[] shapesGraphs;
 
 	Sail addedStatements;
 	Sail removedStatements;
@@ -114,6 +115,12 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 		this.shapesRepoConnection = shapesRepoConnection;
 		this.sail = sail;
 		this.transactionSettings = getDefaultSettings(sail);
+		this.useDefaultShapesGraph = sail.getShapesGraphs().contains(RDF4J.SHACL_SHAPE_GRAPH);
+		this.shapesGraphs = sail.getShapesGraphs().stream().map(g -> {
+			if (g.equals(RDF4J.NIL))
+				return null;
+			return g;
+		}).toArray(IRI[]::new);
 	}
 
 	private Settings getDefaultSettings(ShaclSail sail) {
@@ -265,7 +272,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	@Override
 	public void addStatement(UpdateContext modify, Resource subj, IRI pred, Value obj, Resource... contexts)
 			throws SailException {
-		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
+		if (useDefaultShapesGraph && contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
 			shapesRepoConnection.add(subj, pred, obj, contexts);
 			shapeRefreshNeeded = true;
 		} else {
@@ -276,7 +283,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	@Override
 	public void removeStatement(UpdateContext modify, Resource subj, IRI pred, Value obj, Resource... contexts)
 			throws SailException {
-		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
+		if (useDefaultShapesGraph && contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
 			shapesRepoConnection.remove(subj, pred, obj, contexts);
 			shapeRefreshNeeded = true;
 		} else {
@@ -286,7 +293,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 	@Override
 	public void addStatement(Resource subj, IRI pred, Value obj, Resource... contexts) throws SailException {
-		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
+		if (useDefaultShapesGraph && contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
 			shapesRepoConnection.add(subj, pred, obj, contexts);
 			shapeRefreshNeeded = true;
 		} else {
@@ -296,7 +303,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 	@Override
 	public void removeStatements(Resource subj, IRI pred, Value obj, Resource... contexts) throws SailException {
-		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
+		if (useDefaultShapesGraph && contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
 			shapesRepoConnection.remove(subj, pred, obj, contexts);
 			shapeRefreshNeeded = true;
 		} else {
@@ -422,7 +429,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 				if (shapesWriteLock != null) {
 					// we need to refresh the shapes cache!
 					try {
-						sail.refreshShapesCache();
+						sail.refreshShapesCache(shapesGraphs);
 					} finally {
 						shapesWriteLock.release();
 					}
@@ -779,7 +786,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 			List<ContextWithShapes> shapesAfterRefresh = null;
 
-			if (shapeRefreshNeeded || !connectionListenerActive) {
+			if (shapeRefreshNeeded || !connectionListenerActive || isBulkValidation()) {
 				if (shapesWriteLock == null) {
 					shapesWriteLock = sail.getShapesWriteLock();
 				}
@@ -787,7 +794,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 				shapesModifiedInCurrentTransaction = shapeRefreshNeeded;
 				shapeRefreshNeeded = false;
-				shapesAfterRefresh = sail.getShapes(shapesRepoConnection, this);
+				shapesAfterRefresh = sail.getShapes(shapesRepoConnection, this, shapesGraphs);
 			} else {
 
 				if (shapesReadLock == null) {
@@ -982,11 +989,14 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	}
 
 	private void checkIfShapesRefreshIsNeeded(Statement statement) {
-		// TODO: This is really slow and we need a better way of doing this!!!
-		if (statement.getSubject().toString().startsWith(SHACL.NAMESPACE) ||
-				statement.getPredicate().toString().startsWith(SHACL.NAMESPACE) ||
-				statement.getObject().toString().startsWith(SHACL.NAMESPACE)) {
-			shapeRefreshNeeded = true;
+
+		if (!shapeRefreshNeeded) {
+			for (IRI shapesGraph : shapesGraphs) {
+				if (Objects.equals(statement.getContext(), shapesGraph)) {
+					shapeRefreshNeeded = true;
+					break;
+				}
+			}
 		}
 	}
 
@@ -1014,7 +1024,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	@Override
 	public CloseableIteration<? extends Statement, SailException> getStatements(Resource subj, IRI pred, Value obj,
 			boolean includeInferred, Resource... contexts) throws SailException {
-		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
+		if (useDefaultShapesGraph && contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
 			return ConnectionHelper
 					.getCloseableIteration(shapesRepoConnection.getStatements(subj, pred, obj, includeInferred));
 		}
@@ -1027,7 +1037,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	public boolean hasStatement(Resource subj, IRI pred, Value obj, boolean includeInferred, Resource... contexts)
 			throws SailException {
 
-		if (contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
+		if (useDefaultShapesGraph && contexts.length == 1 && RDF4J.SHACL_SHAPE_GRAPH.equals(contexts[0])) {
 			return shapesRepoConnection.hasStatement(subj, pred, obj, includeInferred);
 		}
 
@@ -1044,7 +1054,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 		if (!isActive()) {
 			throw new IllegalStateException("No active transaction!");
 		}
-		return validate(sail.getShapes(shapesRepoConnection, this), true);
+		return validate(sail.getShapes(shapesRepoConnection, this, shapesGraphs), true);
 	}
 
 	Settings getTransactionSettings() {

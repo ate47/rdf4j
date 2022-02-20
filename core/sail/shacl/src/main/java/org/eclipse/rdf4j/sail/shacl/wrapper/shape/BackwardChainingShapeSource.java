@@ -41,8 +41,9 @@ public class BackwardChainingShapeSource implements ShapeSource {
 	}
 
 	public Stream<ShapesGraph> getAllShapeContexts() {
-		assert context == null;
-		try (Stream<? extends Statement> stream = connection.getStatements(null, SHACL.SHAPES_GRAPH, null, false)
+		assert context != null;
+		try (Stream<? extends Statement> stream = connection
+				.getStatements(null, SHACL.SHAPES_GRAPH, null, false, context)
 				.stream()) {
 
 			return stream
@@ -52,13 +53,6 @@ public class BackwardChainingShapeSource implements ShapeSource {
 					.map(entry -> new ShapeSource.ShapesGraph(entry.getKey(), entry.getValue()));
 		}
 
-//		return Stream
-//			.of(getContext(Predicates.TARGET_NODE), getContext(Predicates.TARGET_CLASS),
-//				getContext(Predicates.TARGET_SUBJECTS_OF), getContext(Predicates.TARGET_OBJECTS_OF),
-//				getContext(Predicates.TARGET_PROP), getContext(Predicates.RSX_targetShape))
-//			.reduce(Stream::concat)
-//			.get()
-//			.distinct();
 	}
 
 	private Stream<Resource> getContext(Predicates predicate) {

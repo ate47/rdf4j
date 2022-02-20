@@ -16,6 +16,7 @@ import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.RDF4J;
+import org.eclipse.rdf4j.query.algebra.Str;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.sail.SailConnection;
 
@@ -65,14 +66,13 @@ public class CombinedShapeSource implements ShapeSource {
 			Resource[] context2 = Arrays.stream(context)
 					.filter(c -> !RDF4J.SHACL_SHAPE_GRAPH.equals(c))
 					.toArray(Resource[]::new);
-			return new CombinedShapeSource(rdf4jShapesGraph.withContext(context), baseSail.withContext(context2),
+			return new CombinedShapeSource(rdf4jShapesGraph.withContext(context1), baseSail.withContext(context2),
 					context);
 		}
 
 	}
 
 	public Stream<ShapesGraph> getAllShapeContexts() {
-		assert context == null;
 		return Stream.concat(rdf4jShapesGraph.getAllShapeContexts(), baseSail.getAllShapeContexts());
 	}
 

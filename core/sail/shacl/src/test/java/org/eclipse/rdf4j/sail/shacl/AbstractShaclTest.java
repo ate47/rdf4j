@@ -44,6 +44,7 @@ import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.update.UpdateAction;
 import org.eclipse.rdf4j.common.transaction.IsolationLevel;
 import org.eclipse.rdf4j.common.transaction.IsolationLevels;
+import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
@@ -52,6 +53,7 @@ import org.eclipse.rdf4j.model.impl.DynamicModel;
 import org.eclipse.rdf4j.model.impl.DynamicModelFactory;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.util.Models;
+import org.eclipse.rdf4j.model.util.Values;
 import org.eclipse.rdf4j.model.vocabulary.FOAF;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDF4J;
@@ -248,6 +250,8 @@ abstract public class AbstractShaclTest {
 			.distinct()
 			.sorted()
 			.collect(Collectors.toList());
+	public static final Set<IRI> SHAPE_GRAPHS = Set.of(RDF4J.SHACL_SHAPE_GRAPH, RDF4J.NIL,
+			Values.iri("http://example.com/ns#shapesGraph1"));
 
 	boolean fullLogging = false;
 	static List<TestCase> testCases = getTestsToRun();
@@ -1063,6 +1067,8 @@ abstract public class AbstractShaclTest {
 		shaclSail.setEclipseRdf4jShaclExtensions(true);
 		shaclSail.setDashDataShapes(true);
 		shaclSail.setPerformanceLogging(false);
+
+		shaclSail.setShapesGraphs(SHAPE_GRAPHS);
 
 		repository.init();
 

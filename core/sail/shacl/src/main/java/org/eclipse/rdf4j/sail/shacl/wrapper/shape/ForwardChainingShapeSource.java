@@ -157,9 +157,6 @@ public class ForwardChainingShapeSource implements ShapeSource {
 	}
 
 	public Stream<ShapesGraph> getAllShapeContexts() {
-
-		assert context == null;
-
 		if (connection.hasStatement(null, null, null, false, RDF4J.SHACL_SHAPE_GRAPH)) {
 			return Stream.of(new ShapesGraph(null, RDF4J.SHACL_SHAPE_GRAPH));
 		}
