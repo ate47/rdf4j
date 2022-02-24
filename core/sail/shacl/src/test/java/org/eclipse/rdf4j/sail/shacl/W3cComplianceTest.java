@@ -67,16 +67,16 @@ public class W3cComplianceTest {
 
 	@Ignore
 	@Test
-	public void test() throws IOException {
+	public void test() throws IOException, InterruptedException {
 		runTest(testCasePath);
 	}
 
 	@Test
-	public void parsingTest() throws IOException {
+	public void parsingTest() throws IOException, InterruptedException {
 		runParsingTest(testCasePath);
 	}
 
-	private void runParsingTest(URL resourceName) throws IOException {
+	private void runParsingTest(URL resourceName) throws IOException, InterruptedException {
 		W3C_shaclTestValidate expected = new W3C_shaclTestValidate(resourceName);
 
 		ShaclSail shaclSail = new ShaclSail(new MemoryStore());
@@ -99,8 +99,8 @@ public class W3cComplianceTest {
 
 	}
 
-	private Model extractShapesModel(ShaclSail shaclSail) {
-		List<ContextWithShapes> shapes = shaclSail.getCachedShapes().getShapes();
+	private Model extractShapesModel(ShaclSail shaclSail) throws InterruptedException {
+		List<ContextWithShapes> shapes = shaclSail.getCachedShapes().getDataAndRelease();
 
 		HashSet<Resource> dedupe = new HashSet<>();
 		DynamicModel model = new DynamicModelFactory().createEmptyModel();
@@ -171,7 +171,7 @@ public class W3cComplianceTest {
 
 	}
 
-	private void runTest(URL resourceName) throws IOException {
+	private void runTest(URL resourceName) throws IOException, InterruptedException {
 		W3C_shaclTestValidate expected = new W3C_shaclTestValidate(resourceName);
 
 		ShaclSail shaclSail = new ShaclSail(new MemoryStore());

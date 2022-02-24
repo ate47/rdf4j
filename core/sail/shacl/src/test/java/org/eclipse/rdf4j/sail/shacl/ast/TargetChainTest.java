@@ -20,19 +20,19 @@ import org.junit.jupiter.api.Test;
 public class TargetChainTest {
 
 	@Test
-	public void testTargetChain() throws IOException {
+	public void testTargetChain() throws IOException, InterruptedException {
 		ShaclSail shaclSail = Utils.getInitializedShaclSail("shaclExactly.trig");
 
-		List<ContextWithShapes> shapes = shaclSail.getCachedShapes().getShapes();
+		List<ContextWithShapes> shapes = shaclSail.getCachedShapes().getDataAndRelease();
 
 		shaclSail.shutDown();
 	}
 
 	@Test
-	public void testTargetChainOr() throws IOException {
+	public void testTargetChainOr() throws IOException, InterruptedException {
 		ShaclSail shaclSail = Utils.getInitializedShaclSail("test-cases/or/maxCount/shacl.trig");
 
-		List<ContextWithShapes> shapes = shaclSail.getCachedShapes().getShapes();
+		List<ContextWithShapes> shapes = shaclSail.getCachedShapes().getDataAndRelease();
 
 		assert shapes.get(0).getShapes().get(0) instanceof NodeShape;
 

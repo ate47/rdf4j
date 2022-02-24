@@ -12,7 +12,6 @@ import java.io.File;
 import java.lang.ref.Cleaner;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -173,8 +172,7 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	final private ReadPrefReadWriteLockManager lockManager = new ReadPrefReadWriteLockManager();
 
 	// shapesCacheLockManager used to keep track of changes to the cache
-	final private StampedLockManager shapesCacheLockManager = new StampedLockManager();
-	private volatile List<ContextWithShapes> cachedShapes = Collections.emptyList();
+	private StampedLockManager.Cache<List<ContextWithShapes>> cachedShapes;
 
 	// This is used to keep track of the current connection, if the opening and closing of connections is done serially.
 	// If it is done in parallel, then this will catch that and the multipleConcurrentConnections == true.
@@ -203,35 +201,14 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 		}
 	}
 
-	Lock getShapesWriteLock() {
-		try {
-			return shapesCacheLockManager.getWriteLock();
-		} catch (InterruptedException e) {
-			throw new IllegalStateException(e);
-		}
+	public StampedLockManager.Cache<List<ContextWithShapes>>.WritableState getCachedShapesForWriting()
+			throws InterruptedException {
+		return cachedShapes.getWriteState();
 	}
 
-	Lock getShapesReadLock() {
-		try {
-			return shapesCacheLockManager.getReadLock();
-		} catch (InterruptedException e) {
-			throw new IllegalStateException(e);
-		}
-	}
-
-	void refreshShapesCache(IRI[] shapesGraphs) {
-		if (!shapesCacheLockManager.isWriterActive())
-			throw new IllegalStateException("Should have been write locked!");
-		try {
-			cachedShapes = getShapes(shapesGraphs);
-		} catch (Throwable e) {
-			cachedShapes = null;
-			throw e;
-		}
-	}
-
-	public void disableShapesCache() {
-		cachedShapes = null;
+	public StampedLockManager.Cache<List<ContextWithShapes>>.ReadableState getCachedShapes()
+			throws InterruptedException {
+		return cachedShapes.getReadState();
 	}
 
 	static class CleanableState implements Runnable {
@@ -375,6 +352,16 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 			shapesRepoConnection.begin(IsolationLevels.NONE);
 			shapesRepoConnection.commit();
 		}
+
+		cachedShapes = new StampedLockManager.Cache<>(new StampedLockManager(), () -> {
+			IRI[] shapesGraphs = getShapesGraphs().stream().map(g -> {
+				if (g.equals(RDF4J.NIL)) {
+					return null;
+				}
+				return g;
+			}).toArray(IRI[]::new);
+			return getShapes(shapesGraphs);
+		});
 	}
 
 	@InternalUseOnly
@@ -397,6 +384,8 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 			shapesRepo.shutDown();
 			shapesRepo = null;
 		}
+
+		cachedShapes = null;
 
 		boolean terminated = shutdownExecutorService(false);
 
@@ -471,17 +460,6 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 					shapesRepoConnection.commit();
 				}
 			}
-		}
-
-	}
-
-	@InternalUseOnly
-	public ShapesCache getCachedShapes() {
-		try {
-			StampedLockManager.OptimisticReadLock optimisticReadLock = shapesCacheLockManager.getOptimisticReadLock();
-			return new ShapesCache(cachedShapes, optimisticReadLock);
-		} catch (InterruptedException e) {
-			throw new IllegalStateException(e);
 		}
 	}
 

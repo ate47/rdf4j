@@ -983,9 +983,8 @@ abstract public class AbstractShaclTest {
 		SailRepository shaclRepository = getShaclSail(testCase, true);
 		try {
 
-			List<ContextWithShapes> shapes = ((ShaclSail) shaclRepository.getSail())
-					.getCachedShapes()
-					.getShapes();
+			List<ContextWithShapes> shapes = ((ShaclSail) shaclRepository.getSail()).getCachedShapes()
+					.getDataAndRelease();
 
 			Model shapesModel = new DynamicModelFactory().createEmptyModel();
 			HashSet<Resource> dedupe = new HashSet<>();
@@ -1022,6 +1021,8 @@ abstract public class AbstractShaclTest {
 				assertEquals(modelToString(expected), modelToString(actual));
 			}
 
+		} catch (InterruptedException e) {
+			throw new IllegalStateException(e);
 		} finally {
 			shaclRepository.shutDown();
 		}

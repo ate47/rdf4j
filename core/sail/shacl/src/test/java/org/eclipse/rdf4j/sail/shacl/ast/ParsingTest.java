@@ -24,10 +24,10 @@ import org.junit.jupiter.api.Test;
 public class ParsingTest {
 
 	@Test
-	public void initialTest() throws IOException {
+	public void initialTest() throws IOException, InterruptedException {
 		ShaclSail shaclSail = Utils.getInitializedShaclSail("test-cases/datatype/not/shacl.trig");
 
-		List<Shape> shapes = shaclSail.getCachedShapes().getShapes().get(0).getShapes();
+		List<Shape> shapes = shaclSail.getCachedShapes().getDataAndRelease().get(0).getShapes();
 
 		DynamicModel emptyModel = new DynamicModelFactory().createEmptyModel();
 
@@ -37,10 +37,10 @@ public class ParsingTest {
 	}
 
 	@Test
-	public void testSplitting() throws IOException {
+	public void testSplitting() throws IOException, InterruptedException {
 		ShaclSail shaclSail = Utils.getInitializedShaclSail("shaclExactly.trig");
 
-		List<Shape> shapes = shaclSail.getCachedShapes().getShapes().get(0).getShapes();
+		List<Shape> shapes = shaclSail.getCachedShapes().getDataAndRelease().get(0).getShapes();
 
 		assertEquals(8, shapes.size());
 

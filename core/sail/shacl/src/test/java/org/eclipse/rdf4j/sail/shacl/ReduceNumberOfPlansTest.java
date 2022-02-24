@@ -33,7 +33,8 @@ import org.junit.jupiter.api.Test;
 public class ReduceNumberOfPlansTest {
 
 	@Test
-	public void testAddingTypeStatement() throws RDFParseException, UnsupportedRDFormatException, IOException {
+	public void testAddingTypeStatement()
+			throws RDFParseException, UnsupportedRDFormatException, IOException, InterruptedException {
 		ShaclSail shaclSail = new ShaclSail(new MemoryStore());
 		shaclSail.init();
 		Utils.loadShapeData(shaclSail, "reduceNumberOfPlansTest/shacl.trig");
@@ -47,7 +48,7 @@ public class ReduceNumberOfPlansTest {
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
 				List<PlanNode> collect = shaclSail.getCachedShapes()
-						.getShapes()
+						.getDataAndRelease()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
@@ -62,7 +63,7 @@ public class ReduceNumberOfPlansTest {
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
 				List<PlanNode> collect2 = shaclSail.getCachedShapes()
-						.getShapes()
+						.getDataAndRelease()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
@@ -85,7 +86,8 @@ public class ReduceNumberOfPlansTest {
 	}
 
 	@Test
-	public void testRemovingPredicate() throws RDF4JException, UnsupportedRDFormatException, IOException {
+	public void testRemovingPredicate()
+			throws RDF4JException, UnsupportedRDFormatException, IOException, InterruptedException {
 		ShaclSail shaclSail = new ShaclSail(new MemoryStore());
 		shaclSail.init();
 		Utils.loadShapeData(shaclSail, "reduceNumberOfPlansTest/shacl.trig");
@@ -113,7 +115,7 @@ public class ReduceNumberOfPlansTest {
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
 				List<PlanNode> collect1 = shaclSail.getCachedShapes()
-						.getShapes()
+						.getDataAndRelease()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
@@ -129,7 +131,7 @@ public class ReduceNumberOfPlansTest {
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
 				List<PlanNode> collect2 = shaclSail.getCachedShapes()
-						.getShapes()
+						.getDataAndRelease()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))
@@ -143,7 +145,7 @@ public class ReduceNumberOfPlansTest {
 			try (ConnectionsGroup connectionsGroup = connection.getConnectionsGroup()) {
 
 				List<PlanNode> collect3 = shaclSail.getCachedShapes()
-						.getShapes()
+						.getDataAndRelease()
 						.stream()
 						.flatMap(s -> s.getShapes().stream())
 						.map(shape -> shape.generatePlans(connectionsGroup, new ValidationSettings()))

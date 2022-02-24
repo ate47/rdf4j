@@ -10,6 +10,7 @@ package org.eclipse.rdf4j.common.concurrent.locks;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.StampedLock;
+import java.util.function.Supplier;
 
 import org.eclipse.rdf4j.common.concurrent.locks.diagnostics.LockCleaner;
 import org.eclipse.rdf4j.common.concurrent.locks.diagnostics.LockDiagnostics;
@@ -24,8 +25,8 @@ import org.slf4j.LoggerFactory;
  */
 public class StampedLockManager implements ReadWriteLockManager {
 
-	private final LockMonitoring readLockMonitoring;
-	private final LockMonitoring writeLockMonitoring;
+	private final LockMonitoring<ReadLock> readLockMonitoring;
+	private final LockMonitoring<WriteLock> writeLockMonitoring;
 
 	// StampedLock for handling writers.
 	final StampedLock stampedLock = new StampedLock();
@@ -158,29 +159,41 @@ public class StampedLockManager implements ReadWriteLockManager {
 		return readLockMonitoring.getLock();
 	}
 
-	private Lock createReadLockInner() throws InterruptedException {
+	private ReadLock createReadLockInner() throws InterruptedException {
 		return new ReadLock(stampedLock, stampedLock.readLockInterruptibly());
 	}
 
 	/**
-	 * TODO
+	 * TODO docs
 	 */
 	public OptimisticReadLock getOptimisticReadLock() throws InterruptedException {
 		long optimisticReadStamp = stampedLock.tryOptimisticRead();
 		if (optimisticReadStamp != 0) {
 			return new OptimisticReadLock(stampedLock, optimisticReadStamp);
-		} else {
-			long readLock = stampedLock.readLockInterruptibly();
-			try {
-				optimisticReadStamp = stampedLock.tryOptimisticRead();
-				if (optimisticReadStamp == 0) {
-					throw new IllegalMonitorStateException("Optimistic read should be guaranteed while write locked!");
-				}
-				return new OptimisticReadLock(stampedLock, optimisticReadStamp);
-			} finally {
-				stampedLock.unlockRead(readLock);
-			}
+		}
+		return null;
+	}
 
+	/**
+	 * TODO docs
+	 */
+	public Lock convertToReadLock(Lock writeLock) {
+
+		WriteLock innerWriteLock = writeLockMonitoring.unsafeInnerLock(writeLock);
+
+		long readLockStamp = stampedLock.tryConvertToReadLock(innerWriteLock.stamp);
+		innerWriteLock.stamp = 0;
+		if (readLockStamp == 0) {
+			throw new IllegalMonitorStateException("Lock is not a locked write lock.");
+		}
+		ReadLock readLock = new ReadLock(stampedLock, readLockStamp);
+		try {
+			Lock registered = readLockMonitoring.register(readLock);
+			writeLockMonitoring.unregister(writeLock);
+			return registered;
+		} catch (Throwable t) {
+			readLock.release();
+			throw t;
 		}
 	}
 
@@ -192,7 +205,7 @@ public class StampedLockManager implements ReadWriteLockManager {
 		return writeLockMonitoring.getLock();
 	}
 
-	private Lock createWriteLockInner() throws InterruptedException {
+	private WriteLock createWriteLockInner() throws InterruptedException {
 
 		// Acquire a write-lock.
 		long writeStamp = writeLockInterruptibly();
@@ -231,7 +244,7 @@ public class StampedLockManager implements ReadWriteLockManager {
 		return readLockMonitoring.tryLock();
 	}
 
-	private Lock tryReadLockInner() {
+	private ReadLock tryReadLockInner() {
 		long stamp = stampedLock.tryReadLock();
 		if (stamp != 0) {
 			return new ReadLock(stampedLock, stamp);
@@ -248,7 +261,7 @@ public class StampedLockManager implements ReadWriteLockManager {
 		return writeLockMonitoring.tryLock();
 	}
 
-	private Lock tryWriteLockInner() {
+	private WriteLock tryWriteLockInner() {
 		// Try to acquire a write-lock.
 		long stamp = stampedLock.tryWriteLock();
 		if (stamp != 0) {
@@ -298,6 +311,7 @@ public class StampedLockManager implements ReadWriteLockManager {
 
 			lock.unlockWrite(temp);
 		}
+
 	}
 
 	private static class ReadLock implements Lock {
@@ -346,6 +360,150 @@ public class StampedLockManager implements ReadWriteLockManager {
 		public void release() {
 			// no-op
 		}
+	}
+
+	public static class Cache<T> {
+		private final Supplier<T> dataSupplier;
+		private volatile T data;
+		private final StampedLockManager stampedLockManager;
+
+		public Cache(StampedLockManager stampedLockManager, Supplier<T> dataSupplier) {
+			this.dataSupplier = dataSupplier;
+			this.stampedLockManager = stampedLockManager;
+		}
+
+		public ReadableState getReadState() throws InterruptedException {
+			Lock readLock = refreshCacheIfNeeded(stampedLockManager.getReadLock());
+			return new ReadableState(data, readLock);
+		}
+
+		private Lock refreshCacheIfNeeded(Lock readLock) throws InterruptedException {
+			if (data == null) {
+				readLock.release();
+				Lock writeLock = stampedLockManager.getWriteLock();
+				try {
+					if (data == null) {
+						data = dataSupplier.get();
+					}
+					readLock = stampedLockManager.convertToReadLock(writeLock);
+				} catch (Throwable t) {
+					if (writeLock.isActive()) {
+						writeLock.release();
+					}
+					throw t;
+				}
+			}
+			return readLock;
+		}
+
+		public WritableState getWriteState() throws InterruptedException {
+			Lock writeLock = stampedLockManager.getWriteLock();
+			return new WritableState(writeLock);
+		}
+
+		public OptimisicState<T> getOptimisticState() throws InterruptedException {
+			Lock readLock = refreshCacheIfNeeded(stampedLockManager.getReadLock());
+			try {
+				OptimisticReadLock optimisticReadLock = stampedLockManager.getOptimisticReadLock();
+				if (optimisticReadLock == null) {
+					throw new IllegalMonitorStateException(
+							"StampedLockManager is read locked and all optimistic reads should succeed");
+				}
+				T data = this.data;
+				return new OptimisicState<>(data, stampedLockManager, optimisticReadLock);
+			} finally {
+				readLock.release();
+			}
+		}
+
+		public static class OptimisicState<T> {
+			T data;
+			StampedLockManager stampedLockManager;
+			OptimisticReadLock lock;
+
+			OptimisicState(T data, StampedLockManager stampedLockManager, OptimisticReadLock lock) {
+				this.data = data;
+				assert this.data != null;
+				this.stampedLockManager = stampedLockManager;
+				this.lock = lock;
+			}
+
+			public boolean isValid() {
+				return lock.isActive();
+			}
+
+			public T getData() {
+				return data;
+			}
+
+		}
+
+		public class ReadableState implements AutoCloseable {
+			T data;
+			Lock readLock;
+
+			ReadableState(T data, Lock readLock) {
+				this.data = data;
+				this.readLock = readLock;
+			}
+
+			@Override
+			public void close() {
+				readLock.release();
+			}
+
+			public T getData() {
+				if (!readLock.isActive()) {
+					throw new IllegalMonitorStateException("Read lock has been released");
+				}
+				return data;
+			}
+
+			public T getDataAndRelease() {
+				if (!readLock.isActive()) {
+					throw new IllegalMonitorStateException("Read lock has been released");
+				}
+				readLock.release();
+				return data;
+			}
+		}
+
+		public class WritableState implements AutoCloseable {
+			Lock writeLock;
+			private boolean purged;
+
+			WritableState(Lock writeLock) {
+				this.writeLock = writeLock;
+			}
+
+			public void purge() {
+				if (!writeLock.isActive()) {
+					throw new IllegalMonitorStateException("Write lock has been released");
+				}
+				purged = true;
+				data = null;
+			}
+
+			T getData() {
+				if (!writeLock.isActive()) {
+					throw new IllegalMonitorStateException("Write lock has been released");
+				}
+				if (purged) {
+					throw new IllegalMonitorStateException("Cache was previously purged by this object.");
+				}
+				if (data == null) {
+					data = dataSupplier.get();
+				}
+				assert data != null;
+				return data;
+			}
+
+			@Override
+			public void close() {
+				writeLock.release();
+			}
+		}
+
 	}
 
 }
