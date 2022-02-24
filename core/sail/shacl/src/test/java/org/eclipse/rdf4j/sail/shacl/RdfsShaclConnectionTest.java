@@ -56,6 +56,7 @@ public class RdfsShaclConnectionTest {
 
 			assertTrue(connection2.hasStatement(aSubSub, RDF.TYPE, sup, true));
 		}
+		shaclSail.shutDown();
 
 	}
 
@@ -100,6 +101,8 @@ public class RdfsShaclConnectionTest {
 			}
 		}
 
+		shaclSail.shutDown();
+
 	}
 
 	@Test
@@ -130,6 +133,8 @@ public class RdfsShaclConnectionTest {
 
 			}
 		}
+		shaclSail.shutDown();
+
 	}
 
 	private void fill(ShaclSail shaclSail) {

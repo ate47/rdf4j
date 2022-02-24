@@ -39,6 +39,7 @@ public class ExtendedFeaturesetTest {
 			connection.add(vf.createBNode(), ex_knows, vf.createBNode());
 			connection.commit();
 		}
+		shaclRepository.shutDown();
 
 	}
 
@@ -61,6 +62,7 @@ public class ExtendedFeaturesetTest {
 				}
 			});
 		}
+		shaclRepository.shutDown();
 
 	}
 
@@ -77,6 +79,8 @@ public class ExtendedFeaturesetTest {
 			connection.add(bNode, ex_knows, vf.createBNode());
 			connection.commit();
 		}
+
+		shaclRepository.shutDown();
 
 	}
 
@@ -103,6 +107,7 @@ public class ExtendedFeaturesetTest {
 				}
 			});
 		}
+		shaclRepository.shutDown();
 
 	}
 

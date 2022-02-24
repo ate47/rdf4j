@@ -11,7 +11,6 @@ package org.eclipse.rdf4j.sail.shacl.ast;
 import java.io.IOException;
 import java.util.List;
 
-import org.eclipse.rdf4j.common.transaction.IsolationLevels;
 import org.eclipse.rdf4j.sail.shacl.ShaclSail;
 import org.eclipse.rdf4j.sail.shacl.Utils;
 import org.eclipse.rdf4j.sail.shacl.ast.constraintcomponents.OrConstraintComponent;

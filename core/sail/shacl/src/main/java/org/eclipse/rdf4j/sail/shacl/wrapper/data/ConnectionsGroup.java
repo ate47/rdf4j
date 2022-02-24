@@ -8,10 +8,8 @@
 
 package org.eclipse.rdf4j.sail.shacl.wrapper.data;
 
-import java.io.Closeable;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.eclipse.rdf4j.common.annotation.InternalUseOnly;
 import org.eclipse.rdf4j.common.transaction.IsolationLevels;

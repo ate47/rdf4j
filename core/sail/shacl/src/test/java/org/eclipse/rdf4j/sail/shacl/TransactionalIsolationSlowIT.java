@@ -33,7 +33,7 @@ import org.junit.jupiter.api.parallel.Isolated;
 public class TransactionalIsolationSlowIT {
 
 	@Test
-	public void testIsolation2_multithreaded_READ_COMMITTED() throws Throwable {
+	public void testIsolationMultithreaded_READ_COMMITTED() throws Throwable {
 		for (int i = 0; i < 1000; i++) {
 			ShaclSail shaclSail = new ShaclSail(new MemoryStore());
 
@@ -169,7 +169,7 @@ public class TransactionalIsolationSlowIT {
 	}
 
 	@Test
-	public void testIsolation2_multithreaded_SNAPSHOT() throws Throwable {
+	public void testIsolationMultithreaded_SNAPSHOT() throws Throwable {
 		for (int i = 0; i < 1000; i++) {
 			ShaclSail shaclSail = new ShaclSail(new MemoryStore());
 
@@ -303,21 +303,6 @@ public class TransactionalIsolationSlowIT {
 			}
 
 		}
-	}
-
-	private void add(SailRepositoryConnection connection, String data) throws IOException {
-		data = String.join("\n", "",
-				"@prefix ex: <http://example.com/ns#> .",
-				"@prefix foaf: <http://xmlns.com/foaf/0.1/>.",
-				"@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-				data);
-
-		connection.begin();
-
-		StringReader stringReader = new StringReader(data);
-
-		connection.add(stringReader, "", RDFFormat.TRIG);
-		connection.commit();
 	}
 
 	private void addInTransaction(SailRepositoryConnection connection, String data) {

@@ -9,7 +9,6 @@
 package org.eclipse.rdf4j.sail.shacl.wrapper.shape;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.eclipse.rdf4j.model.IRI;
