@@ -157,6 +157,7 @@ abstract public class AbstractShaclTest {
 			"test-cases/hasValueIn/targetNode",
 			"test-cases/hasValueIn/targetNode2",
 			"test-cases/implicitTargetClass/simple",
+			"test-cases/implicitTargetClass/simpleDefaultGraph",
 			"test-cases/in/notAnd",
 			"test-cases/in/notOr",
 			"test-cases/in/simple",
@@ -913,9 +914,9 @@ abstract public class AbstractShaclTest {
 
 			if (ran) {
 				if (testCase.expectedResult == ExpectedResult.valid) {
-					assertFalse(exception);
+					assertFalse("Expected validation to succeed", exception);
 				} else {
-					assertTrue(exception);
+					assertTrue("Expected validation to fail", exception);
 				}
 
 				testValidationReport(testCase.testCasePath, validationReportActual);

@@ -21,7 +21,7 @@
 @prefix ecinst: <http://www.ontotext.com/connectors/entity-change/instance#> .
 @prefix rdf4j: <http://rdf4j.org/schema/rdf4j#> .
 
-rdf4j:SHACLShapeGraph {
+ {
   vocsh:MinMaxScalars a sh:NodeShape;
     rsx:targetShape [ a sh:Shape;
         sh:property [
@@ -65,7 +65,7 @@ rdf4j:SHACLShapeGraph {
         sh:minCount 1;
         sh:datatype rdf:langString
       ] .
-  
+
   vocsh:MinMaxObjects a sh:NodeShape;
     rsx:targetShape [ a sh:Shape;
         sh:property [
@@ -96,7 +96,7 @@ rdf4j:SHACLShapeGraph {
         sh:maxCount 1;
         sh:node vocsh:MinMaxScalarsRef
       ] .
-  
+
   vocsh:_AbstractOne a sh:NodeShape;
     rsx:targetShape [ a sh:NodeShape;
         sh:and ([
@@ -122,7 +122,7 @@ rdf4j:SHACLShapeGraph {
         sh:maxCount 1;
         sh:datatype xsd:string
       ] .
-  
+
   vocsh:RealOne a sh:NodeShape;
     rsx:targetShape [ a sh:Shape;
         sh:property [
@@ -150,7 +150,7 @@ rdf4j:SHACLShapeGraph {
         sh:maxCount 1;
         sh:datatype xsd:string
       ] .
-  
+
   vocsh:TypeConstraintObj a sh:NodeShape;
     rsx:targetShape [ a sh:Shape;
         sh:property [
@@ -258,7 +258,7 @@ rdf4j:SHACLShapeGraph {
               sh:datatype rdf:langString
             ])
       ] .
-  
+
   vocsh:TypeConstraintObjMin2Max3 a sh:NodeShape;
     rsx:targetShape [ a sh:Shape;
         sh:property [
@@ -390,7 +390,7 @@ rdf4j:SHACLShapeGraph {
               sh:datatype rdf:langString
             ])
       ] .
-  
+
   vocsh:NumberConstrainsObject a sh:NodeShape;
     rsx:targetShape [ a sh:Shape;
         sh:property [
@@ -489,7 +489,7 @@ rdf4j:SHACLShapeGraph {
         sh:minInclusive "-2014-02"^^xsd:gYearMonth;
         sh:maxInclusive "2024-08"^^xsd:gYearMonth
       ] .
-  
+
   vocsh:NumberConstrainsObjectExclusive a sh:NodeShape;
     rsx:targetShape [ a sh:Shape;
         sh:property [
@@ -588,7 +588,7 @@ rdf4j:SHACLShapeGraph {
         sh:minExclusive "-2014-02"^^xsd:gYearMonth;
         sh:maxExclusive "2024-08"^^xsd:gYearMonth
       ] .
-  
+
   vocsh:ValuesInConstraints a sh:NodeShape;
     rsx:targetShape [ a sh:Shape;
         sh:property [
@@ -734,7 +734,7 @@ rdf4j:SHACLShapeGraph {
         sh:maxCount 10;
         sh:node vocsh:ValuesInConstraintsRef
       ] .
-  
+
   vocsh:NumberConstrainsObjectMixed a sh:NodeShape;
     rsx:targetShape [ a sh:Shape;
         sh:property [
@@ -777,7 +777,7 @@ rdf4j:SHACLShapeGraph {
         sh:minInclusive "+0000000005"^^xsd:unsignedLong;
         sh:maxInclusive "18446744073709551611"^^xsd:unsignedLong
       ] .
-  
+
   vocsh:StringConstraints a sh:NodeShape;
     rsx:targetShape [ a sh:Shape;
         sh:property [
@@ -822,7 +822,7 @@ rdf4j:SHACLShapeGraph {
         sh:maxCount 1;
         sh:datatype xsd:string
       ] .
-  
+
   vocsh:LangStringUniq a sh:NodeShape;
     rsx:targetShape [ a sh:Shape;
         sh:property [
@@ -907,4 +907,6 @@ rdf4j:SHACLShapeGraph {
               sh:datatype rdf:langString
             ])
       ] .
+  rdf4j:nil sh:shapesGraph rdf4j:nil.
+
 }

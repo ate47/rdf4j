@@ -15,6 +15,7 @@ import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
+import org.eclipse.rdf4j.model.util.Statements;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.sail.SailConnection;
@@ -51,15 +52,6 @@ public class BackwardChainingShapeSource implements ShapeSource {
 					.map(entry -> new ShapeSource.ShapesGraph(entry.getKey(), entry.getValue()));
 		}
 
-	}
-
-	private Stream<Resource> getContext(Predicates predicate) {
-		assert context == null;
-
-		return connection.getStatements(null, predicate.getIRI(), null, true)
-				.stream()
-				.map(Statement::getContext)
-				.distinct();
 	}
 
 	public Stream<Resource> getTargetableShape() {
@@ -99,7 +91,20 @@ public class BackwardChainingShapeSource implements ShapeSource {
 
 	public Stream<Statement> getAllStatements(Resource id) {
 		assert context != null;
-		return connection.getStatements(id, null, null, true, context).stream().map(s -> ((Statement) s));
+
+		Stream<Statement> backwardsChained = Stream.empty();
+
+		for (Resource resource : context) {
+			if (connection.hasStatement(id, SHACL.PATH, null, true, new Resource[] { resource })) {
+				backwardsChained = Stream.concat(backwardsChained,
+						Stream.of(Statements.statement(id, RDF.TYPE, SHACL.PROPERTY_SHAPE, resource)));
+			}
+		}
+
+		return Stream.concat(
+				connection.getStatements(id, null, null, true, context).stream().map(s -> ((Statement) s)),
+				backwardsChained
+		);
 	}
 
 	public Value getRdfFirst(Resource subject) {

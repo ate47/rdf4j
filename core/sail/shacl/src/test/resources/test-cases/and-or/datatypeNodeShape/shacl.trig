@@ -6,7 +6,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix rdf4j: <http://rdf4j.org/schema/rdf4j#> .
 
-rdf4j:SHACLShapeGraph {
+ {
   ex:PersonShape a sh:NodeShape;
     sh:targetClass ex:Person;
     sh:or ([
@@ -23,10 +23,12 @@ rdf4j:SHACLShapeGraph {
                     ])
               ])
         ]) .
-  
+
   ex:personShapeAgeInteger sh:path ex:age;
     sh:datatype xsd:integer .
-  
+
   ex:personShapeAgeLong sh:path ex:age;
     sh:datatype xsd:long .
+
+     rdf4j:nil sh:shapesGraph rdf4j:nil.
 }

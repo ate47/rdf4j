@@ -29,9 +29,7 @@ public class ShaclProperties {
 
 	private static final Logger logger = LoggerFactory.getLogger(ShaclProperties.class);
 
-	// every shape is either a sh:NodeShape or a sh:PropertyShape, we default to NodeShape since sh:path has domain
-	// sh:PropertyShape so the reasoner will figure that out
-	private IRI type = SHACL.NODE_SHAPE;
+	private IRI type;
 
 	private final List<IRI> clazz = new ArrayList<>();
 	private final List<Resource> or = new ArrayList<>();
@@ -101,14 +99,24 @@ public class ShaclProperties {
 		this.id = id;
 		try (Stream<Statement> stream = connection.getAllStatements(id)) {
 			stream.forEach(statement -> {
+
 				String predicate = statement.getPredicate().toString();
 				Value object = statement.getObject();
+
 				switch (predicate) {
 				case "http://www.w3.org/1999/02/22-rdf-syntax-ns#type":
 					if (object.stringValue().equals("http://www.w3.org/ns/shacl#NodeShape")) {
-						this.type = SHACL.NODE_SHAPE;
+						if (type != null && !type.equals(SHACL.NODE_SHAPE)) {
+							throw new IllegalStateException(
+									"Shape with multiple types: <" + type + ">, <" + SHACL.NODE_SHAPE + ">");
+						}
+						type = SHACL.NODE_SHAPE;
 					} else if (object.stringValue().equals("http://www.w3.org/ns/shacl#PropertyShape")) {
-						this.type = SHACL.PROPERTY_SHAPE;
+						if (type != null && !type.equals(SHACL.PROPERTY_SHAPE)) {
+							throw new IllegalStateException(
+									"Shape with multiple types: <" + type + ">, <" + SHACL.PROPERTY_SHAPE + ">");
+						}
+						type = SHACL.PROPERTY_SHAPE;
 					}
 					break;
 				case "http://www.w3.org/ns/shacl#or":
@@ -241,6 +249,7 @@ public class ShaclProperties {
 					if (path != null) {
 						throw new IllegalStateException(predicate + " already populated");
 					}
+					assert type != SHACL.NODE_SHAPE;
 					path = (Resource) object;
 					break;
 				case "http://www.w3.org/ns/shacl#in":
@@ -307,6 +316,11 @@ public class ShaclProperties {
 				}
 
 			});
+		}
+
+		// We default to sh:NodeShape if no other type is given.
+		if (type == null) {
+			type = SHACL.NODE_SHAPE;
 		}
 
 	}

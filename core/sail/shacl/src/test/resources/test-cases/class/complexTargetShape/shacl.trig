@@ -8,7 +8,7 @@
 @prefix rsx: <http://rdf4j.org/shacl-extensions#> .
 @prefix rdf4j: <http://rdf4j.org/schema/rdf4j#> .
 
-rdf4j:SHACLShapeGraph {
+ {
   ex:PersonShape a sh:NodeShape;
     rsx:targetShape [ a sh:NodeShape;
         sh:or ([
@@ -33,4 +33,6 @@ rdf4j:SHACLShapeGraph {
         sh:path ex:knows;
         sh:class ex:Person
       ] .
+  rdf4j:nil sh:shapesGraph rdf4j:nil.
+
 }

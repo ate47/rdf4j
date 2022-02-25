@@ -28,7 +28,12 @@ rdf4j:SHACLShapeGraph {
             sh:path rdf:type;
             sh:hasValue ont:LangStringUniq
           ]
-      ];
+      ].
+}
+
+{
+
+  vocsh:LangStringUniq a sh:NodeShape;
     sh:property [ a sh:PropertyShape;
         sh:path ont:uniqStrOrLangstrEnDeAllDialects;
         sh:qualifiedValueShape [ a sh:NodeShape;
@@ -36,4 +41,7 @@ rdf4j:SHACLShapeGraph {
           ];
         sh:qualifiedMaxCount 1
       ] .
+
+  rdf4j:nil sh:shapesGraph rdf4j:nil, rdf4j:SHACLShapeGraph.
+
 }

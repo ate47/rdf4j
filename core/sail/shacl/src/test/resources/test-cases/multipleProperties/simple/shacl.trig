@@ -15,7 +15,16 @@ ex:PersonShape
 	sh:property [
 		sh:path ex:phoneNumber ;
 		sh:minLength 8 ;
-	];
+	].
+  rdf4j:nil sh:shapesGraph rdf4j:SHACLShapeGraph.
+
+
+}
+
+{
+ex:PersonShape
+	a sh:NodeShape  ;
+	sh:targetClass ex:Person ;
 
 	sh:property [
         	sh:path ex:phoneNumber2 ;
@@ -23,5 +32,6 @@ ex:PersonShape
         ]
 	.
 
+  rdf4j:nil sh:shapesGraph rdf4j:nil.
 
 }

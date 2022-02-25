@@ -6,7 +6,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix rdf4j: <http://rdf4j.org/schema/rdf4j#> .
 
-rdf4j:SHACLShapeGraph {
+ {
   ex:PersonShape a sh:NodeShape;
     sh:targetClass ex:Thing;
     sh:property [
@@ -14,4 +14,6 @@ rdf4j:SHACLShapeGraph {
         sh:maxExclusive 1000;
         sh:minLength 3
       ] .
+  rdf4j:nil sh:shapesGraph rdf4j:nil.
+
 }

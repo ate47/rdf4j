@@ -7,7 +7,7 @@
 @prefix dash: <http://datashapes.org/dash#> .
 @prefix rdf4j: <http://rdf4j.org/schema/rdf4j#> .
 
-rdf4j:SHACLShapeGraph {
+ {
   ex:shape1 a sh:NodeShape;
     sh:targetClass ex:Person;
     sh:property [
@@ -20,4 +20,6 @@ rdf4j:SHACLShapeGraph {
               dash:hasValueIn ("red")
             ])
       ] .
+  rdf4j:nil sh:shapesGraph rdf4j:nil.
+
 }

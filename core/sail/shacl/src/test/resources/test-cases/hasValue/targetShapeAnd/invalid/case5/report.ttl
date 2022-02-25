@@ -6,23 +6,103 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix rsx: <http://rdf4j.org/shacl-extensions#> .
 
-[] a sh:ValidationReport;
-  <http://rdf4j.org/schema/rdf4j#truncated> false;
-  sh:conforms false;
-  sh:result [ a sh:ValidationResult;
-      sh:focusNode "abc";
-      sh:resultPath ex:info2;
-      sh:resultSeverity sh:Violation;
-      sh:sourceConstraintComponent sh:MinCountConstraintComponent;
-      sh:sourceShape _:node1f3n4rbn5x5
-    ], [ a sh:ValidationResult;
-      sh:focusNode ex:Person;
-      sh:resultPath ex:info2;
-      sh:resultSeverity sh:Violation;
-      sh:sourceConstraintComponent sh:MinCountConstraintComponent;
-      sh:sourceShape _:node1f3n4rbn5x5
-    ] .
+{
+  [] a sh:ValidationReport;
+    <http://rdf4j.org/schema/rdf4j#truncated> false;
+    sh:conforms false;
+    sh:result [ a sh:ValidationResult;
+        sh:focusNode "blue";
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode ex:Person;
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode [];
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode [];
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode <http://rdf4j.org/schema/rdf4j#nil>;
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode [];
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode ex:info;
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode _:node1fsparpqqx35373;
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode 1;
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode ex:info2;
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode sh:NodeShape;
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode rdf:nil;
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode [];
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode ex:shape1;
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ], [ a sh:ValidationResult;
+        sh:focusNode "abc";
+        sh:resultPath ex:info2;
+        sh:resultSeverity sh:Violation;
+        sh:sourceConstraintComponent sh:MinCountConstraintComponent;
+        sh:sourceShape _:node1fsparpqqx35373
+      ] .
 
-_:node1f3n4rbn5x5 a sh:PropertyShape;
-  sh:minCount 1;
-  sh:path ex:info2 .
+  _:node1fsparpqqx35373 a sh:PropertyShape;
+    sh:minCount 1;
+    sh:path ex:info2 .
+}
