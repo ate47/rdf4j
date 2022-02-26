@@ -17,6 +17,7 @@ import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.util.Statements;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
+import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.sail.SailConnection;
 
@@ -56,10 +57,17 @@ public class BackwardChainingShapeSource implements ShapeSource {
 
 	public Stream<Resource> getTargetableShape() {
 		assert context != null;
+
+		Stream<Resource> inferred = connection.getStatements(null, RDF.TYPE, RDFS.CLASS, true, context)
+				.stream()
+				.map(Statement::getSubject)
+				.filter(s -> connection.hasStatement(s, RDF.TYPE, SHACL.NODE_SHAPE, true, context));
+
 		return Stream
 				.of(getSubjects(Predicates.TARGET_NODE), getSubjects(Predicates.TARGET_CLASS),
 						getSubjects(Predicates.TARGET_SUBJECTS_OF), getSubjects(Predicates.TARGET_OBJECTS_OF),
-						getSubjects(Predicates.TARGET_PROP), getSubjects(Predicates.RSX_targetShape))
+						getSubjects(Predicates.TARGET_PROP), getSubjects(Predicates.RSX_targetShape),
+						inferred)
 				.reduce(Stream::concat)
 				.get()
 				.distinct();
@@ -94,11 +102,19 @@ public class BackwardChainingShapeSource implements ShapeSource {
 
 		Stream<Statement> backwardsChained = Stream.empty();
 
-		for (Resource resource : context) {
-			if (connection.hasStatement(id, SHACL.PATH, null, true, new Resource[] { resource })) {
-				backwardsChained = Stream.concat(backwardsChained,
-						Stream.of(Statements.statement(id, RDF.TYPE, SHACL.PROPERTY_SHAPE, resource)));
-			}
+		if (connection.hasStatement(id, SHACL.PATH, null, true, context)) {
+			backwardsChained = Stream.concat(
+					backwardsChained,
+					Stream.of(Statements.statement(id, RDF.TYPE, SHACL.PROPERTY_SHAPE, null))
+			);
+		}
+
+		if (connection.hasStatement(id, RDF.TYPE, RDFS.CLASS, true, context)
+				&& connection.hasStatement(id, RDF.TYPE, SHACL.NODE_SHAPE, true, context)) {
+			backwardsChained = Stream.concat(
+					backwardsChained,
+					Stream.of(Statements.statement(id, SHACL.TARGET_CLASS, id, null))
+			);
 		}
 
 		return Stream.concat(

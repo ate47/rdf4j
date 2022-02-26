@@ -981,6 +981,11 @@ abstract public class AbstractShaclTest {
 
 	void runParsingTest(TestCase testCase) {
 
+		// skip test case with shapes split between multiple graphs
+		if (testCase.testCasePath.startsWith("test-cases/qualifiedShape/complex/")) {
+			return;
+		}
+
 		SailRepository shaclRepository = getShaclSail(testCase, true);
 		try {
 
