@@ -61,7 +61,8 @@ public class BackwardChainingShapeSource implements ShapeSource {
 		Stream<Resource> inferred = connection.getStatements(null, RDF.TYPE, RDFS.CLASS, true, context)
 				.stream()
 				.map(Statement::getSubject)
-				.filter(s -> connection.hasStatement(s, RDF.TYPE, SHACL.NODE_SHAPE, true, context));
+				.filter(this::isNodeShapeOrPropertyShape
+				);
 
 		return Stream
 				.of(getSubjects(Predicates.TARGET_NODE), getSubjects(Predicates.TARGET_CLASS),
@@ -73,9 +74,9 @@ public class BackwardChainingShapeSource implements ShapeSource {
 				.distinct();
 	}
 
-	public boolean isType(Resource subject, IRI type) {
-		assert context != null;
-		return connection.hasStatement(subject, RDF.TYPE, type, true, context);
+	private boolean isNodeShapeOrPropertyShape(Resource id) {
+		return connection.hasStatement(id, RDF.TYPE, SHACL.NODE_SHAPE, true, context) ||
+				connection.hasStatement(id, RDF.TYPE, SHACL.PROPERTY_SHAPE, true, context);
 	}
 
 	public Stream<Resource> getSubjects(Predicates predicate) {
@@ -109,8 +110,8 @@ public class BackwardChainingShapeSource implements ShapeSource {
 			);
 		}
 
-		if (connection.hasStatement(id, RDF.TYPE, RDFS.CLASS, true, context)
-				&& connection.hasStatement(id, RDF.TYPE, SHACL.NODE_SHAPE, true, context)) {
+		if (connection.hasStatement(id, RDF.TYPE, RDFS.CLASS, true, context) &&
+				isNodeShapeOrPropertyShape(id)) {
 			backwardsChained = Stream.concat(
 					backwardsChained,
 					Stream.of(Statements.statement(id, SHACL.TARGET_CLASS, id, null))
@@ -145,6 +146,11 @@ public class BackwardChainingShapeSource implements ShapeSource {
 		// .orElseThrow(() -> new IllegalStateException("Corrupt rdf:list at rdf:rest: " + subject));
 
 		return ((Resource) value);
+	}
+
+	public boolean isType(Resource subject, IRI type) {
+		assert context != null;
+		return connection.hasStatement(subject, RDF.TYPE, type, true, context);
 	}
 
 	@Override

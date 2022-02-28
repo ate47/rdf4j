@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -39,6 +40,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
+import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.jena.update.UpdateAction;
@@ -80,6 +82,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.topbraid.jenax.util.JenaUtil;
 import org.topbraid.shacl.util.ModelPrinter;
+import org.topbraid.shacl.util.SHACLUtil;
 import org.topbraid.shacl.validation.ValidationUtil;
 import org.topbraid.shacl.vocabulary.SH;
 
@@ -581,11 +584,6 @@ abstract public class AbstractShaclTest {
 
 		// uses rsx:nodeShape
 		if (testCase.testCasePath.startsWith("test-cases/complex/targetShapeAndQualifiedShape/")) {
-			return;
-		}
-
-		// skip tests where shapes are not in the rdf4j shapes graph
-		if (testCase.testCasePath.contains("DefaultGraph/") || testCase.testCasePath.contains("NamedGraph/")) {
 			return;
 		}
 
