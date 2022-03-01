@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -35,11 +36,13 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
+import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFLanguages;
@@ -587,13 +590,26 @@ abstract public class AbstractShaclTest {
 			return;
 		}
 
+		// sh:shapesGraph
+		if (testCase.testCasePath.startsWith("test-cases/datatype/simpleNamedGraph/")) {
+			return;
+		}
+
 		printTestCase(testCase);
 
 		Dataset shaclDataset = DatasetFactory.create();
 
 		RDFDataMgr.read(shaclDataset, new StringReader(testCase.getShaclData()), "", RDFLanguages.TRIG);
 
-		org.apache.jena.rdf.model.Model shacl = shaclDataset.getNamedModel(RDF4J.SHACL_SHAPE_GRAPH.toString());
+		org.apache.jena.rdf.model.Model shacl = JenaUtil.createMemoryModel();
+
+		Iterator<String> stringIterator = shaclDataset.listNames();
+		while (stringIterator.hasNext()) {
+			String namedGraph = stringIterator.next();
+			shacl.add(shaclDataset.getNamedModel(namedGraph));
+		}
+
+		shacl.add(shaclDataset.getDefaultModel());
 
 		checkShapesConformToW3cShaclRecommendation(shacl);
 

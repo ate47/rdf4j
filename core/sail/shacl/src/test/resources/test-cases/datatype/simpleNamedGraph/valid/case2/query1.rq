@@ -6,7 +6,7 @@ PREFIX sh: <http://www.w3.org/ns/shacl#>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
 INSERT DATA {
-ex:g1{
+GRAPH ex:g1 {
 ex:validPerson1 a ex:Person ;
 	ex:age 123.
 }
