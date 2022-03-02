@@ -17,18 +17,22 @@ public class ValidationSettings {
 	private final Resource[] dataGraph;
 	private final boolean logValidationPlans;
 	private final boolean validateEntireBaseSail;
+	private boolean performanceLogging;
 
-	public ValidationSettings(Resource[] dataGraph, boolean logValidationPlans, boolean validateEntireBaseSail) {
+	public ValidationSettings(Resource[] dataGraph, boolean logValidationPlans, boolean validateEntireBaseSail,
+			boolean performanceLogging) {
 
 		this.dataGraph = dataGraph;
 		this.logValidationPlans = logValidationPlans;
 		this.validateEntireBaseSail = validateEntireBaseSail;
+		this.performanceLogging = performanceLogging;
 	}
 
 	public ValidationSettings() {
 		dataGraph = new Resource[] { null };
 		logValidationPlans = false;
 		validateEntireBaseSail = false;
+		this.performanceLogging = false;
 	}
 
 	public Resource[] getDataGraph() {
@@ -41,5 +45,9 @@ public class ValidationSettings {
 
 	public boolean isValidateEntireBaseSail() {
 		return validateEntireBaseSail;
+	}
+
+	public boolean isPerformanceLogging() {
+		return performanceLogging;
 	}
 }

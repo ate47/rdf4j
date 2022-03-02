@@ -163,7 +163,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 			previousStateConnection.hasStatement(null, null, null, false); // actually force a transaction to start
 		}
 
-		stats.setEmptyBeforeTransaction(isEmpty());
+		stats.setEmptyBeforeTransaction(ConnectionHelper.isEmpty(this));
 
 		transactionSettings = getDefaultSettings(sail);
 
@@ -252,17 +252,15 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 			prepare();
 		}
 
-		long before = 0;
-		if (sail.isPerformanceLogging()) {
-			before = System.currentTimeMillis();
-		}
+		long before = getTimeStamp();
+
 		previousStateConnection.commit();
 
 		super.commit();
 		shapesRepoConnection.commit();
 
 		if (sail.isPerformanceLogging()) {
-			logger.info("commit() excluding validation and cleanup took {} ms", System.currentTimeMillis() - before);
+			logger.info("commit() excluding validation and cleanup took {} ms", getTimeStamp() - before);
 		}
 		cleanup();
 	}
@@ -488,84 +486,16 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 					.stream()
 					.flatMap(contextWithShapes -> contextWithShapes.getShapes()
 							.stream()
-							.map(shape -> {
-								// Important to start measuring time before we call .iterator() since the initialisation
-								// of the
-								// iterator will already do a lot of work if there is for instance a Sort in the
-								// pipeline
-								// because Sort (among others) will consume its parent iterator and sort the results on
-								// initialization!
-								long before = 0;
-								if (sail.isPerformanceLogging()) {
-									before = System.currentTimeMillis();
-								}
-
-								return new ShapePlanNodeTuple(
-										shape, shape
-												.generatePlans(connectionsGroup,
-														new ValidationSettings(contextWithShapes.getDataGraph(),
-																sail.isLogValidationPlans(), validateEntireBaseSail)),
-										before);
-							})
-
+							.map(shape -> new ValidationContainer(
+									shape,
+									shape.generatePlans(connectionsGroup,
+											new ValidationSettings(contextWithShapes.getDataGraph(),
+													sail.isLogValidationPlans(), validateEntireBaseSail,
+													sail.isPerformanceLogging()))
+							))
 					)
-					.filter(ShapePlanNodeTuple::hasPlanNode)
-					.map(shapePlanNodeTuple -> () -> {
-
-						PlanNode planNode = shapePlanNodeTuple.getPlanNode();
-						ValidationExecutionLogger validationExecutionLogger = ValidationExecutionLogger
-								.getInstance(sail.isGlobalLogValidationExecution());
-
-						planNode.receiveLogger(validationExecutionLogger);
-
-						if (validationExecutionLogger.isEnabled()) {
-							logger.info("Start execution of plan:\n{}\n", shapePlanNodeTuple.getShape().toString());
-						}
-
-						try (CloseableIteration<? extends ValidationTuple, SailException> iterator = planNode
-								.iterator()) {
-
-							ValidationResultIterator validationResults;
-
-							try {
-								validationResults = new ValidationResultIterator(iterator,
-										sail.getEffectiveValidationResultsLimitPerConstraint());
-							} finally {
-								if (validationExecutionLogger.isEnabled()) {
-									validationExecutionLogger.flush();
-								}
-							}
-
-							if (sail.isPerformanceLogging()) {
-								long after = System.currentTimeMillis();
-								logger.info("Execution of plan took {} ms for:\n{}\n",
-										(after - shapePlanNodeTuple.getPerformanceLoggingTimeStamp()),
-										shapePlanNodeTuple.getShape().toString());
-							}
-
-							if (validationExecutionLogger.isEnabled()) {
-								logger.info("Finished execution of plan:\n{}\n",
-										shapePlanNodeTuple.getShape().toString());
-							}
-
-							if (sail.isLogValidationViolations()) {
-								if (!validationResults.conforms()) {
-									List<ValidationTuple> tuples = validationResults.getTuples();
-
-									logger.info(
-											"SHACL not valid. The following experimental debug results were produced:  \n\t\t{}\n\n{}\n",
-											tuples.stream()
-													.map(ValidationTuple::toString)
-													.collect(Collectors.joining("\n\t\t")),
-											shapePlanNodeTuple.getShape().toString()
-
-									);
-								}
-							}
-
-							return validationResults;
-						}
-					});
+					.filter(ValidationContainer::hasPlanNode)
+					.map(validationContainer -> validationContainer::performValidation);
 
 			List<ValidationResultIterator> validationResultIterators;
 
@@ -782,7 +712,7 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 				return;
 			}
 
-			stats.setEmptyIncludingCurrentTransaction(isEmpty());
+			stats.setEmptyIncludingCurrentTransaction(ConnectionHelper.isEmpty(this));
 
 			prepareValidation();
 
@@ -981,10 +911,6 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 	}
 
-	private boolean isEmpty() {
-		return ConnectionHelper.isEmpty(this);
-	}
-
 	public ValidationReport revalidate() {
 
 		if (!isActive()) {
@@ -995,6 +921,105 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 	Settings getTransactionSettings() {
 		return transactionSettings;
+	}
+
+	private long getTimeStamp() {
+		if (sail.isPerformanceLogging()) {
+			return System.currentTimeMillis();
+		}
+		return 0;
+	}
+
+	private class ValidationContainer {
+		private final Shape shape;
+		private final PlanNode planNode;
+		private final ValidationExecutionLogger validationExecutionLogger;
+
+		public ValidationContainer(Shape shape, PlanNode planNode) {
+			this.shape = shape;
+			this.validationExecutionLogger = ValidationExecutionLogger
+					.getInstance(sail.isGlobalLogValidationExecution());
+			if (!(planNode instanceof EmptyNode)) {
+				this.planNode = new SingleCloseablePlanNode(planNode);
+				this.planNode.receiveLogger(validationExecutionLogger);
+
+			} else {
+				this.planNode = planNode;
+			}
+		}
+
+		public Shape getShape() {
+			return shape;
+		}
+
+		public PlanNode getPlanNode() {
+			return planNode;
+		}
+
+		public boolean hasPlanNode() {
+			return !(planNode instanceof EmptyNode);
+		}
+
+		public ValidationResultIterator performValidation() {
+			long before = getTimeStamp();
+
+			handlePreLogging();
+
+			ValidationResultIterator validationResults = null;
+
+			try (CloseableIteration<? extends ValidationTuple, SailException> iterator = planNode.iterator()) {
+				validationResults = new ValidationResultIterator(iterator,
+						sail.getEffectiveValidationResultsLimitPerConstraint());
+				return validationResults;
+			} finally {
+				handlePostLogging(before, validationResults);
+			}
+		}
+
+		private void handlePreLogging() {
+			if (validationExecutionLogger.isEnabled()) {
+				logger.info("Start execution of plan:\n{}\n", getShape().toString());
+			}
+		}
+
+		private void handlePostLogging(long before, ValidationResultIterator validationResults) {
+			if (validationExecutionLogger.isEnabled()) {
+				validationExecutionLogger.flush();
+			}
+
+			if (validationResults != null) {
+
+				if (sail.isPerformanceLogging()) {
+					long after = System.currentTimeMillis();
+					logger.info("Execution of plan took {} ms for:\n{}\n",
+							(after - before),
+							getShape().toString());
+				}
+
+				if (validationExecutionLogger.isEnabled()) {
+					logger.info("Finished execution of plan:\n{}\n",
+							getShape().toString());
+				}
+
+				if (sail.isLogValidationViolations()) {
+					if (!validationResults.conforms()) {
+						List<ValidationTuple> tuples = validationResults.getTuples();
+
+						logger.info(
+								"SHACL not valid. The following experimental debug results were produced:  \n\t\t{}\n\n{}\n",
+								tuples.stream()
+										.map(ValidationTuple::toString)
+										.collect(Collectors.joining("\n\t\t")),
+								getShape().toString()
+
+						);
+					}
+				}
+
+			}
+
+		}
+
 	}
 
 	public static class Settings {
@@ -1098,38 +1123,6 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 				parallelValidation = false;
 				cacheSelectedNodes = false;
 			}
-		}
-	}
-
-	static class ShapePlanNodeTuple {
-		private final Shape shape;
-		private final PlanNode planNode;
-		private final long performanceLoggingTimeStamp;
-
-		public ShapePlanNodeTuple(Shape shape, PlanNode planNode, long performanceLoggingTimeStamp) {
-			this.shape = shape;
-			if (!(planNode instanceof EmptyNode)) {
-				this.planNode = new SingleCloseablePlanNode(planNode);
-			} else {
-				this.planNode = planNode;
-			}
-			this.performanceLoggingTimeStamp = performanceLoggingTimeStamp;
-		}
-
-		public Shape getShape() {
-			return shape;
-		}
-
-		public PlanNode getPlanNode() {
-			return planNode;
-		}
-
-		public long getPerformanceLoggingTimeStamp() {
-			return performanceLoggingTimeStamp;
-		}
-
-		public boolean hasPlanNode() {
-			return !(planNode instanceof EmptyNode);
 		}
 	}
 
