@@ -709,6 +709,12 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 	@Override
 	public void prepare() throws SailException {
 		flush();
+
+		long before = 0;
+		if (sail.isPerformanceLogging()) {
+			before = System.currentTimeMillis();
+		}
+
 		boolean useSerializableValidation = shouldUseSerializableValidation() && !isBulkValidation();
 
 		if (useSerializableValidation) {
@@ -723,41 +729,13 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 				if (shapeRefreshNeeded || !connectionListenerActive) {
 					// getting the shapes write lock will ensure that the shapes cache is refreshed when cleanup() is
 					// called after commit/rollback
-					try {
-						writableShapesCache = sail.getCachedShapesForWriting();
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-						throw new SailException(e);
-					}
+					writableShapesCache = sail.getCachedShapesForWriting();
 				}
 				return;
 			}
 
-			long before = 0;
-			if (sail.isPerformanceLogging()) {
-				before = System.currentTimeMillis();
-			}
-
-			// Serializable validation uses synchronized validation (with locking) to allow a transaction to run in
-			// SNAPSHOT isolation but validate as if it was using SERIALIZABLE isolation
-
-//			if (useSerializableValidation) {
-//
-//			} else {
-
-			// only allow one transaction to modify the shapes at a time
-
-//			}
-
 			assert !shapeRefreshNeeded
 					|| !shapesModifiedInCurrentTransaction : "isShapeRefreshNeeded should trigger shapesModifiedInCurrentTransaction once we have loaded the modified shapes, but shapesModifiedInCurrentTransaction should be null until then";
-
-			// since we are within the locked section we can assume that if there are no shapes to validate then we can
-			// skip validation
-			if (!shapeRefreshNeeded && !sail.hasShapes()) {
-				logger.debug("Validation skipped because there are no shapes to validate");
-				return;
-			}
 
 			if (!shapeRefreshNeeded && !isBulkValidation() && addedStatementsSet.isEmpty()
 					&& removedStatementsSet.isEmpty()) {
@@ -765,33 +743,20 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 				return;
 			}
 
-			stats.setEmptyIncludingCurrentTransaction(isEmpty());
-
 			List<ContextWithShapes> currentShapes = null;
 			List<ContextWithShapes> shapesAfterRefresh = null;
 
 			if (shapeRefreshNeeded || !connectionListenerActive || isBulkValidation()) {
 				if (writableShapesCache == null) {
-					try {
-						writableShapesCache = sail.getCachedShapesForWriting();
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-						throw new SailException(e);
-					}
+					writableShapesCache = sail.getCachedShapesForWriting();
 				}
 
 				shapesModifiedInCurrentTransaction = shapeRefreshNeeded;
 				shapeRefreshNeeded = false;
 				shapesAfterRefresh = sail.getShapes(shapesRepoConnection, this, shapesGraphs);
 			} else {
-
 				if (readableShapesCache == null) {
-					try {
-						readableShapesCache = sail.getCachedShapes();
-					} catch (InterruptedException e) {
-						Thread.currentThread().interrupt();
-						throw new SailException(e);
-					}
+					readableShapesCache = sail.getCachedShapes();
 				}
 			}
 
@@ -802,26 +767,12 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 			assert currentShapes != null || shapesAfterRefresh != null;
 			assert !(currentShapes != null && shapesAfterRefresh != null);
 
-//			if (!isBulkValidation() && addedStatementsSet.isEmpty() && removedStatementsSet.isEmpty()) {
-//				if (shapesModifiedInCurrentTransaction && shapesBeforeRefresh != null) {
-//					// we can optimize which shapes to revalidate since no data has changed.
-//
-//
-//
-//					// TODO: We also need to compare the shapes within each ContextWithShapes
-//					HashSet<ContextWithShapes> shapesBeforeRefreshSet = new HashSet<>(shapesBeforeRefresh);
-//
-//					shapesAfterRefresh = shapesAfterRefresh.stream()
-//						.filter(shape -> !shapesBeforeRefreshSet.contains(shape))
-//						.collect(Collectors.toList());
-//
-//				}
-//			}
+			if (isEmpty(currentShapes) && isEmpty(shapesAfterRefresh)) {
+				logger.debug("Validation skipped because there are no shapes to validate");
+				return;
+			}
 
-//			if (shapesAfterRefresh.isEmpty()) {
-//				logger.debug("Validation skipped because there are no shapes to validate");
-//				return;
-//			}
+			stats.setEmptyIncludingCurrentTransaction(isEmpty());
 
 			prepareValidation();
 
@@ -836,14 +787,6 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 			}
 
 			if (invalidTuples == null) {
-//				if (writeLock != null && writeLock.isActive()) {
-// also check if write lock was acquired in prepare() because if it was acquire in one of the other places then we shouldn't downgrade now.
-				// also - are there actually any cases that would execute this code while using multiple threads?
-//					assert readLock == null;
-//					readLock = sail.convertToReadLock(writeLock);
-//					writeLock = null;
-//				}
-
 				invalidTuples = validate(
 						shapesAfterRefresh != null ? shapesAfterRefresh : currentShapes,
 						shapesModifiedInCurrentTransaction || isBulkValidation());
@@ -851,18 +794,21 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 			boolean valid = invalidTuples.conforms();
 
-			if (sail.isPerformanceLogging()) {
-				logger.info("prepare() including validation excluding locking and super.prepare() took {} ms",
-						System.currentTimeMillis() - before);
-			}
-
 			if (!valid) {
 				throw new ShaclSailValidationException(invalidTuples);
 			}
 
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new SailException(e);
 		} finally {
 
 			preparedHasRun = true;
+
+			if (sail.isPerformanceLogging()) {
+				logger.info("prepare() including validation (excluding flushing and super.prepare()) took {} ms",
+						System.currentTimeMillis() - before);
+			}
 
 			shapesRepoConnection.prepare();
 			previousStateConnection.prepare();
@@ -870,6 +816,16 @@ public class ShaclSailConnection extends NotifyingSailConnectionWrapper implemen
 
 		}
 
+	}
+
+	private boolean isEmpty(List<ContextWithShapes> shapesList) {
+		if (shapesList == null)
+			return true;
+		for (ContextWithShapes shapesWithContext : shapesList) {
+			if (!shapesWithContext.getShapes().isEmpty())
+				return false;
+		}
+		return true;
 	}
 
 	private boolean shouldUseSerializableValidation() {

@@ -13,6 +13,7 @@ import java.lang.ref.Cleaner;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -354,12 +355,14 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 		}
 
 		cachedShapes = new StampedLockManager.Cache<>(new StampedLockManager(), () -> {
-			IRI[] shapesGraphs = getShapesGraphs().stream().map(g -> {
-				if (g.equals(RDF4J.NIL)) {
-					return null;
-				}
-				return g;
-			}).toArray(IRI[]::new);
+			IRI[] shapesGraphs = getShapesGraphs().stream()
+					.map(g -> {
+						if (g.equals(RDF4J.NIL)) {
+							return null;
+						}
+						return g;
+					})
+					.toArray(IRI[]::new);
 			return getShapes(shapesGraphs);
 		});
 	}
@@ -463,43 +466,21 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 		}
 	}
 
-	@InternalUseOnly
-	public static class ShapesCache {
-
-		private final List<ContextWithShapes> shapes;
-		private final StampedLockManager.OptimisticReadLock optimisticReadLock;
-
-		public ShapesCache(List<ContextWithShapes> shapes, StampedLockManager.OptimisticReadLock optimisticReadLock) {
-			this.shapes = shapes;
-			this.optimisticReadLock = optimisticReadLock;
+	public void setShapesGraphs(Set<IRI> shapesGraphs) {
+		if (initialized.get()) {
+			try {
+				try (StampedLockManager.Cache<List<ContextWithShapes>>.WritableState writeState = cachedShapes
+						.getWriteState()) {
+					super.setShapesGraphs(shapesGraphs);
+					writeState.purge();
+				}
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new RuntimeException(e);
+			}
+		} else {
+			super.setShapesGraphs(shapesGraphs);
 		}
-
-		public List<ContextWithShapes> getShapes() {
-			return shapes;
-		}
-
-		public boolean isOutdated() {
-			assert shapes != null;
-			return !optimisticReadLock.isActive();
-		}
-
-		public boolean isBlocked() {
-			return shapes == null;
-		}
-	}
-
-	boolean hasShapes() {
-		// TODO: We need to check for shapes in the base sail too, if that is enabled
-//		try (SailRepositoryConnection connection = shapesRepo.getConnection()) {
-//			connection.begin(IsolationLevels.NONE);
-//			try {
-//				return !connection.isEmpty();
-//			} finally {
-//				connection.commit();
-//			}
-//		}
-
-		return true;
 	}
 
 	public static class TransactionSettings {

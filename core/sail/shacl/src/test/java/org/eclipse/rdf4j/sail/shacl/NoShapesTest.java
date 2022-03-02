@@ -22,7 +22,6 @@ import org.mockito.Mockito;
 public class NoShapesTest {
 
 	@Test
-	@Disabled("TODO: Enable this test once we find out how we can quickly and efficiently check if there are any shapes or not.")
 	public void testSkippingValidationWhenThereAreNoShapes() {
 
 		ShaclSail shaclSail = new ShaclSail(new MemoryStore());
