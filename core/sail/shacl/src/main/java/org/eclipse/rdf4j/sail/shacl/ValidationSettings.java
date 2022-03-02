@@ -17,7 +17,7 @@ public class ValidationSettings {
 	private final Resource[] dataGraph;
 	private final boolean logValidationPlans;
 	private final boolean validateEntireBaseSail;
-	private boolean performanceLogging;
+	private final boolean performanceLogging;
 
 	public ValidationSettings(Resource[] dataGraph, boolean logValidationPlans, boolean validateEntireBaseSail,
 			boolean performanceLogging) {
