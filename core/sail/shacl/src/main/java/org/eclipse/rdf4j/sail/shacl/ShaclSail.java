@@ -26,7 +26,6 @@ import java.util.function.Supplier;
 
 import org.eclipse.rdf4j.common.annotation.Experimental;
 import org.eclipse.rdf4j.common.annotation.InternalUseOnly;
-import org.eclipse.rdf4j.common.concurrent.locks.Lock;
 import org.eclipse.rdf4j.common.concurrent.locks.ReadPrefReadWriteLockManager;
 import org.eclipse.rdf4j.common.concurrent.locks.StampedLockManager;
 import org.eclipse.rdf4j.common.transaction.IsolationLevels;
@@ -170,7 +169,7 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 
 	// lockManager used for read/write locks used to synchronize validation so that SNAPSHOT isolation is sufficient to
 	// achieve SERIALIZABLE isolation wrt. validation
-	final private ReadPrefReadWriteLockManager lockManager = new ReadPrefReadWriteLockManager();
+	final ReadPrefReadWriteLockManager serializableValidationLock = new ReadPrefReadWriteLockManager();
 
 	// shapesCacheLockManager used to keep track of changes to the cache
 	private StampedLockManager.Cache<List<ContextWithShapes>> cachedShapes;
@@ -185,22 +184,6 @@ public class ShaclSail extends ShaclSailBaseConfiguration {
 	private final AtomicBoolean initialized = new AtomicBoolean(false);
 
 	private final RevivableExecutorService parallelValidationExecutorService;
-
-	Lock getWriteLock() {
-		try {
-			return lockManager.getWriteLock();
-		} catch (InterruptedException e) {
-			throw new IllegalStateException(e);
-		}
-	}
-
-	Lock getReadLock() {
-		try {
-			return lockManager.getReadLock();
-		} catch (InterruptedException e) {
-			throw new IllegalStateException(e);
-		}
-	}
 
 	public StampedLockManager.Cache<List<ContextWithShapes>>.WritableState getCachedShapesForWriting()
 			throws InterruptedException {
