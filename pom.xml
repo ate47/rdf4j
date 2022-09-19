@@ -50,6 +50,29 @@
 	</modules>
 	<profiles>
 		<profile>
+		<id>github</id>
+		<repositories>
+			<repository>
+				<id>central</id>
+				<url>https://repo1.maven.org/maven2</url>
+			</repository>
+			<repository>
+				<id>github</id>
+				<url>https://maven.pkg.github.com/ate47/rdf4J</url>
+				<snapshots>
+					<enabled>true</enabled>
+				</snapshots>
+			</repository>
+		</repositories>
+		<distributionManagement>
+			<repository>
+				<id>github</id>
+				<name>GitHub ATE47 Apache Maven Packages</name>
+				<url>https://maven.pkg.github.com/ate47/rdf4J</url>
+			</repository>
+		</distributionManagement>
+		</profile>
+		<profile>
 			<id>ossrh</id>
 			<distributionManagement>
 				<snapshotRepository>

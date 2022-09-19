@@ -1,0 +1,29 @@
+name: Custom deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up JDK
+      uses: actions/setup-java@v1
+      with:
+        java-version: 11
+    - name: Cache local Maven repository
+      uses: actions/cache@v2
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-jdk${{ matrix.jdk }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-jdk${{ matrix.jdk }}-maven-
+    - name: Login settings
+      uses: s4u/maven-settings-action@v2.5.0
+      with:
+        servers: '[{"id": "github", "username": "ate47", "password": "${{ secrets.GITHUB_TOKEN }}"}]'
+    - name: Deploy
+      run: mvn deploy -Pgithub -B
+      
