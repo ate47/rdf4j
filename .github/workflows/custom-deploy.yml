@@ -1,9 +1,7 @@
 name: Custom deploy
 
 on:
-  push:
-    branches:
-      - custom-deploy
+  workflow_dispatch:
 
 jobs:
   deploy:
