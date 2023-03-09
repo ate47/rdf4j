@@ -190,9 +190,9 @@ public abstract class AbstractLiteral implements Literal {
 
 				.orElseGet(() -> {
 
-					final IRI datatype = getDatatype();
+					final CoreDatatype datatype = getCoreDatatype();
 
-					return datatype.equals(CoreDatatype.XSD.STRING) ? label
+					return CoreDatatype.XSD.STRING.equals(datatype) ? label
 							: label + "^^<" + datatype.stringValue() + ">";
 
 				});
